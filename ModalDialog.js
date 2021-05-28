@@ -441,17 +441,17 @@ customElements.define("modal-prompt", PromptModalDialog);
  * Class to handle the rendering of the custom ModalDialog elements.
  */
 class modal {
-    async static alert(content, title) {
+    static async alert(content, title) {
         const alertDialog = document.createElement("modal-alert");
         document.body.appendChild(alertDialog);
         return await alertDialog.setAlert(content, title);
     }
-    async static confirm(content, title = null) {
+    static async confirm(content, title = null) {
         const confirmDialog = document.createElement("modal-confirm");
         document.body.appendChild(confirmDialog);
         return await confirmDialog.setConfirm(content, title);
     }
-    async static prompt(content, title = null) {
+    static async prompt(content, title = null) {
         const promptDialog = document.createElement("modal-prompt");
         document.body.appendChild(promptDialog);
         return await promptDialog.setPrompt(content, title);
