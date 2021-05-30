@@ -1,10 +1,13 @@
 /*!
- * # Fomantic-UI - Quantity
- * http://github.com/daemondevin/cdn/fomantic-ui/quantity.js
+ * # Fomantic-UI - Spinner
+ * http://github.com/daemondevin/cdn/fomantic-ui/modules/spinner.js
  *
  *
  * Released under the MIT license
  * http://opensource.org/licenses/MIT
+ *
+ * @todo Add support for multiple types of spinners (i.e. currency, year, month, day, etc.)
+ * @todo Add support for rules for each type of spinner
  *
  */
 
@@ -19,7 +22,7 @@
             : Function('return this')()
     ;
 
-    $.fn.quantity = function(parameters) {
+    $.fn.spinner = function(parameters) {
 
         var
             $allModules    = $(this),
@@ -41,7 +44,7 @@
             BIG_BACKSTEP    = -2,
 
             // Used to manage document bound events.
-            // Use this so that we can distinguish between which document events are bound to which quantity.
+            // Use this so that we can distinguish between which document events are bound to which spinner.
             currentQuantity    = 0,
 
             returnedValue
@@ -52,8 +55,8 @@
 
                 var
                     settings        = ( $.isPlainObject(parameters) )
-                        ? $.extend(true, {}, $.fn.quantity.settings, parameters)
-                        : $.extend({}, $.fn.quantity.settings),
+                        ? $.extend(true, {}, $.fn.spinner.settings, parameters)
+                        : $.extend({}, $.fn.spinner.settings),
 
                     className       = settings.className,
                     metadata        = settings.metadata,
@@ -70,6 +73,7 @@
                     $module         = $(this),
                     $increment,
                     $decrement,
+                    $wrapper,
                     $input,
 
                     element         = this,
@@ -89,7 +93,7 @@
                 module = {
 
                     initialize: function() {
-                        module.debug('Initializing quantity', settings);
+                        module.debug('Initializing spinner', settings);
                         initialLoad = true;
 
                         currentQuantity += 1;
@@ -109,14 +113,14 @@
                         module.instantiate();
                     },
                     instantiate: function() {
-                        module.verbose('Storing instance of quantity', module);
+                        module.verbose('Storing instance of spinner', module);
                         instance = module;
                         $module
                             .data(moduleNamespace, module)
                         ;
                     },
                     destroy: function() {
-                        module.verbose('Destroying previous quantity for', $module);
+                        module.verbose('Destroying previous spinner for', $module);
                         clearInterval(instance.interval);
                         module.unbind.events();
                         module.unbind.togglingEvents();
@@ -130,17 +134,20 @@
                             }
                             if($module.find('.inner').length == 0) {
                                 $module.append("<div class='inner'>"
-                                    + "<input type='text' class='quantity'/>"
+                                    + "<div class='ui input'>"
+                                    + "<input type='text' class='spinner'/>"
+                                    + "</div>"
                                     + "<a class='increment'></a>"
                                     + "<a class='decrement'></a>"
                                     + "</div>");
                             }
                             precision = module.get.precision();
-                            $input = $module.find('.quantity');
+                            $wrapper = $module.parent('input');
+                            $input = $module.find('.spinner');
                             $increment = $module.find('.increment');
                             $decrement = $module.find('.decrement');
-                            $increment.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.incIcon + ' icon"></i>' : settings.incChar;
-                            $decrement.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.decIcon + ' icon"></i>' : settings.decChar;
+                            $increment.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.incIcon + ' link icon"></i>' : settings.incChar;
+                            $decrement.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.decIcon + ' link icon"></i>' : settings.decChar;
                         },
                         testOutTouch: function() {
                             try {
@@ -225,7 +232,7 @@
                         },
                         togglingEvents: function() {
                             // these don't need the identifier because we only ever want one of them to be registered with document
-                            module.verbose('Binding page wide events while quantity is being toggled');
+                            module.verbose('Binding page wide events while spinner is being toggled');
                             if(module.is.touch()) {
                                 $(document).on('touchmove' + eventNamespace, module.event.toggle);
                                 $(document).on('touchend' + eventNamespace, module.event.up);
@@ -461,7 +468,7 @@
                             if(module.is.touch()) {
                                 var
                                     touchEvent = e.changedTouches ? e : e.originalEvent,
-                                    touches = touchEvent.changedTouches[0] ? touchEvent.changedTouches : touchEvent.touches,
+                                    touches = touchEvent.changedTouches[0] ? touchEvent.changedTouches : touchEvent.touches;
                                 ;
                                 return touches[0].pageY;
                             }
@@ -516,7 +523,7 @@
                             }
                             value = newValue;
                             module.inputVal = value;
-                            module.debug('Setting quantity value to ' + value);
+                            module.debug('Setting spinner value to ' + value);
                             if(typeof callback === 'function') {
                                 callback(value, module.inputVal);
                             }
@@ -725,15 +732,15 @@
 
     };
 
-    $.fn.quantity.settings = {
+    $.fn.spinner.settings = {
 
         silent       : false,
         debug        : false,
         verbose      : false,
         performance  : true,
 
-        name         : 'Quantity',
-        namespace    : 'quantity',
+        name         : 'Spinner',
+        namespace    : 'spinner',
 
         error    : {
             method    : 'The method you called is not defined.'
