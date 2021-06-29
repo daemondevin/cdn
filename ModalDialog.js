@@ -118,10 +118,11 @@ class ModalDialogElement extends HTMLElement {
       }
       
       .modal-dialog-header {
-        font-family: 'Inika', serif;
+        font-family: inherit;
+        font-size: 1.25em;
         color: inherit;
         background-color: rgba(0, 0, 0, 0.05);
-        padding: ${padding};
+        padding: 1em;
         border-bottom: solid 1px rgba(0, 0, 0, 0.15);
       }
       
@@ -134,6 +135,22 @@ class ModalDialogElement extends HTMLElement {
         color: inherit;
         padding: 0;
         margin: 0;
+      }
+            
+      .modal-dialog .error {
+        color: #db2828;
+      }
+
+      .modal-dialog .success {
+        color: #21ba45;
+      }
+
+      .modal-dialog .info {
+        color: #31ccec;
+      }
+                  
+      .modal-dialog .warning {
+        color: #f2c037;
       }
       
       .modal-dialog-footer {
