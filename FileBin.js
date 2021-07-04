@@ -286,6 +286,31 @@ const handler = new function FileBin () {
     };
 
     /**
+     * Reads the text content from a file. If reader.text()
+     * is not available then uses FileReader as a fallback.
+     */
+    FileBin.prototype.readFile = (file) => {
+        if (file.text) {
+            return file.text();
+        }
+        return self.readFileLegacy(file);
+    }
+
+    /**
+     * Reads the text content from a file.
+     */
+    FileBin.prototype.readFileLegacy = (file) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.addEventListener('loadend', (e) => {
+                const text = e.target.result;
+                resolve(text);
+            });
+            reader.readAsText(file);
+        });
+    }
+
+    /**
      * Opens a directory from disk using the legacy input click method.
      */
     FileBin.prototype.legacyOpenDir = async (options = {}) => {
@@ -330,6 +355,11 @@ const handler = new function FileBin () {
             input.click();
         });
     };
+
+
+    FileBin.prototype.fileRead = async (file) => {
+        return await self.readFile(file);
+    }
 
     const openDirMethod = !supported ? self.legacyOpenDir
         : supported === 'chooseFileSystemEntries'
