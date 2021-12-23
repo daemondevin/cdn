@@ -8,76 +8,78 @@
  *
  * @todo Add support for multiple types of spinners (i.e. currency, year, month, day, etc.)
  * @todo Add support for rules for each type of spinner
- *
  */
-
-;(function ( $, window, document, undefined ) {
+;(function ($, window, document, undefined) {
 
     "use strict";
 
-    window = (typeof window != 'undefined' && window.Math == Math)
+    window = (typeof window != 'undefined' && window.Math === Math)
         ? window
-        : (typeof self != 'undefined' && self.Math == Math)
+        : (typeof self != 'undefined' && self.Math === Math)
             ? self
             : Function('return this')()
     ;
 
     $.fn.spinner = function(parameters) {
 
-        var
-            $allModules    = $(this),
-            $window        = $(window),
+        let $allModules = $(this),
+            $window = $(window),
 
             moduleSelector = $allModules.selector || '',
 
-            time           = new Date().getTime(),
-            performance    = [],
+            time = new Date().getTime(),
+            performance = [],
 
-            query          = arguments[0],
-            methodInvoked  = (typeof query == 'string'),
+            query = arguments[0],
+            methodInvoked = (typeof query == 'string'),
             queryArguments = [].slice.call(arguments, 1),
 
-            SINGLE_STEP     = 1,
-            BIG_STEP        = 2,
-            NO_STEP         = 0,
+            SINGLE_STEP = 1,
+            BIG_STEP = 2,
+            NO_STEP = 0,
             SINGLE_BACKSTEP = -1,
-            BIG_BACKSTEP    = -2,
+            BIG_BACKSTEP = -2,
 
             // Used to manage document bound events.
             // Use this so that we can distinguish between which document events are bound to which spinner.
-            currentQuantity    = 0,
+            currentQuantity = 0,
 
             returnedValue
         ;
 
         $allModules
-            .each(function() {
+            .each(function (events, handler) {
 
-                var
-                    settings        = ( $.isPlainObject(parameters) )
+                let settings          = ($.isPlainObject(parameters))
                         ? $.extend(true, {}, $.fn.spinner.settings, parameters)
                         : $.extend({}, $.fn.spinner.settings),
 
-                    className       = settings.className,
-                    metadata        = settings.metadata,
-                    namespace       = settings.namespace,
-                    error           = settings.error,
-                    keys            = settings.keys,
-                    negative        = settings.negative,
-                    positive        = settings.positive,
+                    className         = settings.className,
+                    types             = ['quantity', 'year', 'month', 'day', 'currency'],
+                    type              = (types.includes(settings.type.toLowerCase())) ? settings.type.toLowerCase() : "quantity",
+                    metadata          = settings.metadata,
+                    namespace         = settings.namespace,
+                    error             = settings.error,
+                    keys              = settings.keys,
+                    negative          = settings.negative,
+                    positive          = settings.positive,
 
-                    isHover         = false,
-                    eventNamespace  = '.' + namespace,
-                    moduleNamespace = 'module-' + namespace,
+                    isHover = false,
+                    eventNamespace = '.' + namespace,
+                    selectorNamespace = '.' + type + '-' + namespace,
+                    moduleNamespace   = 'module-' + type + '-' + namespace,
 
-                    $module         = $(this),
-                    $increment,
-                    $decrement,
-                    $wrapper,
+                    $module           = $(this),
                     $input,
+                    $label,
+                    $increment,
+                    increment,
+                    $decrement,
+                    decrement,
 
-                    element         = this,
-                    instance        = $module.data(moduleNamespace),
+                    input,
+                    element           = this,
+                    instance          = $module.data(moduleNamespace),
 
                     documentEventID,
 
@@ -129,25 +131,44 @@
                     },
                     setup: {
                         layout: function() {
-                            if( $module.attr('tabindex') === undefined) {
+                            if ($module.attr('tabindex') === undefined) {
                                 $module.attr('tabindex', 0);
                             }
-                            if($module.find('.inner').length == 0) {
-                                $module.append("<div class='inner'>"
-                                    + "<div class='ui input'>"
-                                    + "<input type='text' class='spinner'/>"
-                                    + "</div>"
-                                    + "<a class='increment'></a>"
-                                    + "<a class='decrement'></a>"
-                                    + "</div>");
+
+                            /**
+                             * Checks to see if our input spinner is one of the defined spinner modules
+                             * Defaults to using "quantity" if not
+                             *
+                             * @todo Add switch conditionals to support multiple input spinners based on spinner type
+                             */
+                            switch (type) {
+                                case "quantity":
+                                    if ($module.find('.quantity').length === 0) {
+                                        $module.append("<label class='quantity'>"
+                                            + "<div class='decrement'></div>"
+                                            + "<input type='number' class='quantity-spinner'/>"
+                                            + "<div class='increment'></div>"
+                                            + "</label>");
+                                    }
+                                    break;
+                                case "currency":
+                                case "year":
+                                case "month":
+                                case "day":
+                                default:
+                                    console.log("The " + moduleNamespace + " is still being written!");
+                                    break;
                             }
+
                             precision = module.get.precision();
-                            $wrapper = $module.parent('input');
-                            $input = $module.find('.spinner');
+                            $input = $module.find(selectorNamespace);
+                            input = $input[0];
                             $increment = $module.find('.increment');
+                            increment = $increment[0];
                             $decrement = $module.find('.decrement');
-                            $increment.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.incIcon + ' link icon"></i>' : settings.incChar;
-                            $decrement.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.decIcon + ' link icon"></i>' : settings.decChar;
+                            decrement = $decrement[0];
+                            increment.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.incIcon + ' link icon"></i>' : '<span class="ui medium' + (settings.inverted ? 'inverted ' : '') + ' green text">'+settings.incChar+'</span>';
+                            decrement.innerHTML = settings.useIcon === true ? '<i class="tiny ' + (settings.inverted ? 'inverted ' : '') + settings.decIcon + ' link icon"></i>' : '<span class="ui medium' + (settings.inverted ? 'inverted ' : '') + ' red text">'+settings.decChar+'</span>';
                         },
                         testOutTouch: function() {
                             try {
@@ -179,21 +200,21 @@
                                 }
                             });
                         },
-                        globalKeyboardEvents: function() {
+                        globalKeyboardEvents: function () {
                             $(document).on('keydown' + eventNamespace + documentEventID, module.event.activateFocus);
                         },
                         mouseEvents: function() {
                             module.verbose('Binding mouse events');
-                            $module.on('click' + eventNamespace, 'a.' + $decrement, function(e) {
+                            $module.on('click' + eventNamespace, '.decrement', function(e) {
                                 module.decrease();
                                 e.preventDefault();
                             });
-                            $module.on('click' + eventNamespace, 'a.' + $increment, function(e) {
+                            $module.on('click' + eventNamespace, '.increment', function(e) {
                                 module.increase();
                                 e.preventDefault();
                             });
-                            $module.on('wheel' + eventNamespace, $input, function(e, delta){
-                                var value = module.get.defaultValue() + delta;
+                            $module.on('wheel' + eventNamespace, selectorNamespace, function(e, delta){
+                                const value = module.get.defaultValue() + delta;
                                 if (!settings.negative) {
                                     if (value >= 0) {
                                         e.currentTarget.value = value;
@@ -215,17 +236,17 @@
                         },
                         touchEvents: function() {
                             module.verbose('Binding touch events');
-                            $module.on('touchstart' + eventNamespace, $input, function(event) {
+                            $module.on('touchstart' + eventNamespace, selectorNamespace, function(event) {
                                 event.stopImmediatePropagation();
                                 event.preventDefault();
                                 module.event.down(event);
                             });
                             $module.on('touchstart' + eventNamespace, module.event.down);
-                            $module.on('touchstart' + eventNamespace, 'a.' + $increment, function (e) {
+                            $module.on('touchstart' + eventNamespace, '.increment', function (e) {
                                 module.increase();
                                 e.preventDefault();
                             });
-                            $module.on('touchstart' + eventNamespace, 'a.' + $decrement, function (e) {
+                            $module.on('touchstart' + eventNamespace, '.decrement', function (e) {
                                 module.decrease();
                                 e.preventDefault();
                             });
@@ -242,8 +263,8 @@
 
                     unbind: {
                         events: function() {
-                            $module.find('.inner').off('mousedown' + eventNamespace);
-                            $module.find('.inner').off('touchstart' + eventNamespace);
+                            $module.find(type).off('mousedown' + eventNamespace);
+                            $module.find(type).off('touchstart' + eventNamespace);
                             $module.off('mousedown' + eventNamespace);
                             $module.off('mouseenter' + eventNamespace);
                             $module.off('mouseleave' + eventNamespace);
@@ -271,12 +292,10 @@
                         },
                         toggle: function(e) {
                             e.preventDefault();
-                            var value = module.determine.valueFromEvent(e);
+                            let value = module.determine.valueFromEvent(e);
 
-                            if(module.get.step() == 0) {
-                                var
-                                    inputVal = module.inputVal
-                                ;
+                            if (module.get.step() === 0) {
+                                const inputVal = module.inputVal;
                                 value = Math.abs(inputVal);
                                 settings.onToggle.call(element, value, inputVal);
                             } else {
@@ -287,7 +306,7 @@
                         },
                         up: function(event) {
                             event.preventDefault();
-                            var value = module.determine.valueFromEvent(event);
+                            const value = module.determine.valueFromEvent(event);
                             module.set.value(value);
                             module.unbind.togglingEvents();
                             if (previousValue !== undefined) {
@@ -295,12 +314,12 @@
                             }
                         },
                         keydown: function(event, first) {
-                            if(module.is.focused()) {
+                            if (module.is.focused()) {
                                 $(document).trigger(event);
                             }
-                            if(first || module.is.focused()) {
-                                var step = module.determine.keyMovement(event);
-                                if(step != NO_STEP) {
+                            if (first || module.is.focused()) {
+                                const step = module.determine.keyMovement(event);
+                                if (step !== NO_STEP) {
                                     event.preventDefault();
                                     switch(step) {
                                         case SINGLE_STEP:
@@ -320,16 +339,16 @@
                             }
                         },
                         activateFocus: function(event) {
-                            if(!module.is.focused() && module.is.hover() && module.determine.keyMovement(event) != NO_STEP) {
+                            if(!module.is.focused() && module.is.hover() && module.determine.keyMovement(event) !== NO_STEP) {
                                 event.preventDefault();
                                 module.event.keydown(event, true);
                                 $module.focus();
                             }
                         },
                     },
-                    increase: function(multiplier) {
-                        var
-                            multiplier = multiplier != undefined ? multiplier : 1,
+                    increase: function(x) {
+                        let
+                            multiplier = x !== undefined ? x : 1,
                             step = module.get.step(),
                             currValue = module.get.inputValue()
                         ;
@@ -340,10 +359,9 @@
                             } else {
                                 module.set.value(currValue + step * multiplier);
                             }
-                        } else if (step == 0){
-                            var
-                                precision = module.get.precision(),
-                                newValue = currValue + (multiplier/precision)
+                        } else if (step === 0){
+                            const precision = module.get.precision(),
+                                newValue = currValue + (multiplier / precision)
                             ;
                             if(!positive && newValue <= 0) {
                                 module.set.value(Math.round(newValue * precision) / precision);
@@ -352,9 +370,9 @@
                             }
                         }
                     },
-                    decrease: function(multiplier) {
+                    decrease: function(x) {
                         var
-                            multiplier = multiplier != undefined ? multiplier : 1,
+                            multiplier = x != undefined ? x : 1,
                             step = module.get.step(),
                             currValue = module.get.inputValue()
                         ;
@@ -365,10 +383,9 @@
                             } else {
                                 module.set.value(currValue - step * multiplier);
                             }
-                        } else if (step == 0) {
-                            var
-                                precision = module.get.precision(),
-                                newValue = currValue - (multiplier/precision)
+                        } else if (step === 0) {
+                            const precision = module.get.precision(),
+                                newValue = currValue - (multiplier / precision)
                             ;
                             if(!negative && newValue >= 0) {
                                 module.set.value(Math.round(newValue * precision) / precision);
@@ -393,13 +410,12 @@
                     },
                     get: {
                         precision: function() {
-                            var
-                                decimalPlaces,
+                            let decimalPlaces,
                                 step = module.get.step()
                             ;
-                            if(step != 0) {
-                                var split = String(step).split('.');
-                                if(split.length == 2) {
+                            if(step !== 0) {
+                                const split = String(step).split('.');
+                                if(split.length === 2) {
                                     decimalPlaces = split[1].length;
                                 } else {
                                     decimalPlaces = 0;
@@ -407,7 +423,7 @@
                             } else {
                                 decimalPlaces = settings.decimalPlaces;
                             }
-                            var precision = Math.pow(10, decimalPlaces);
+                            const precision = Math.pow(10, decimalPlaces);
                             module.debug('Precision determined', precision);
                             return precision;
                         },
@@ -415,7 +431,7 @@
                             return settings.min;
                         },
                         max: function() {
-                            var step = module.get.step(),
+                            const step = module.get.step(),
                                 min = module.get.min(),
                                 quotient = step === 0 ? 0 : Math.floor((settings.max - min) / step),
                                 remainder = step === 0 ? 0 : (settings.max - min) % step;
@@ -434,12 +450,12 @@
                             return parseInt(settings.start) || 0;
                         },
                         incrementValue: function() {
-                            var val = module.get.defaultValue();
-                            return ++ val;
+                            let val = module.get.defaultValue();
+                            return ++val;
                         },
                         decrementValue: function() {
-                            var val = module.get.defaultValue();
-                            return -- val;
+                            let val = module.get.defaultValue();
+                            return --val;
                         },
                         multiplier: function() {
                             return settings.pageMultiplier;
@@ -450,12 +466,11 @@
                             return value - module.get.defaultValue();
                         },
                         valueFromEvent: function(e) {
-                            var
-                                eventValue = module.determine.eventValue(e),
+                            let eventValue = module.determine.eventValue(e),
                                 newValue = module.determine.value(eventValue),
                                 value
                             ;
-                            if(!settings.negative) {
+                            if (!settings.negative) {
                                 value = module.is.reversed() ? module.get.max() : module.get.min();
                             } else if(eventValue > module.get.trackOffset() + module.get.trackLength()) {
                                 value = module.is.reversed() ? module.get.min() : module.get.max();
@@ -465,27 +480,25 @@
                             return value;
                         },
                         eventValue: function(e) {
-                            if(module.is.touch()) {
-                                var
-                                    touchEvent = e.changedTouches ? e : e.originalEvent,
+                            if (module.is.touch()) {
+                                const touchEvent = e.changedTouches ? e : e.originalEvent,
                                     touches = touchEvent.changedTouches[0] ? touchEvent.changedTouches : touchEvent.touches;
-                                ;
                                 return touches[0].pageY;
                             }
-                            var
-                                wheelY = e.deltaY || e.originalEvent.deltaY,
+                            const wheelY = e.deltaY || e.originalEvent.deltaY,
                                 wheelX = e.deltaX || e.originalEvent.deltaX
                             ;
                             return wheelY || wheelX;
                         },
                         keyMovement: function(event) {
-                            if(key == keys.downArrow || key == keys.leftArrow) {
+                            var key = event.which;
+                            if (key === keys.downArrow || key === keys.leftArrow) {
                                 return SINGLE_BACKSTEP;
-                            } else if(key == keys.upArrow || key == keys.rightArrow) {
+                            } else if (key === keys.upArrow || key === keys.rightArrow) {
                                 return SINGLE_STEP;
-                            } else if (key == keys.pageDown) {
+                            } else if (key === keys.pageDown) {
                                 return BIG_BACKSTEP;
-                            } else if (key == keys.pageUp) {
+                            } else if (key === keys.pageUp) {
                                 return BIG_STEP;
                             } else {
                                 return NO_STEP;
@@ -495,7 +508,7 @@
                     set: {
                         value: function(newValue, fireChange) {
                             fireChange = fireChange !== false;
-                            var toReset = previousValue === undefined;
+                            const toReset = previousValue === undefined;
                             previousValue = previousValue === undefined ? module.get.value() : previousValue;
                             module.update.value(newValue, function(value, inputVal) {
                                 if ((!initialLoad || settings.fireOnInit) && fireChange){
@@ -512,8 +525,7 @@
                     },
                     update: {
                         value: function(newValue, callback) {
-                            var
-                                min = module.get.min(),
+                            const min = module.get.min(),
                                 max = module.get.max()
                             ;
                             if (newValue <= min) {
@@ -524,25 +536,25 @@
                             value = newValue;
                             module.inputVal = value;
                             module.debug('Setting spinner value to ' + value);
-                            if(typeof callback === 'function') {
+                            input.value = value;
+                            if (typeof callback === 'function') {
                                 callback(value, module.inputVal);
                             }
                         }
                     },
                     read: {
                         metadata: function() {
-                            var
-                                data = {
-                                    initValue        : $module.data(metadata.initValue),
+                            const data = {
+                                    initValue: $module.data(metadata.initValue),
                                 }
                             ;
-                            if(data.initValue) {
+                            if (data.initValue) {
                                 module.debug('Current value set from metadata', data.initValue);
                                 module.set.value(data.initValue);
                             }
                         },
                         settings: function() {
-                            if(settings.start !== false) {
+                            if (settings.start !== false) {
                                 module.debug('Start position set from settings', settings.start);
                                 module.set.value(settings.start);
                             }
@@ -550,11 +562,11 @@
                     },
                     setting: function(name, value) {
                         module.debug('Changing setting', name, value);
-                        if( $.isPlainObject(name) ) {
+                        if(  $.isPlainObject(name) ) {
                             $.extend(true, settings, name);
                         }
-                        else if(value !== undefined) {
-                            if($.isPlainObject(settings[name])) {
+                        else if (value !== undefined) {
+                            if ($.isPlainObject(settings[name])) {
                                 $.extend(true, settings[name], value);
                             }
                             else {
@@ -566,10 +578,10 @@
                         }
                     },
                     internal: function(name, value) {
-                        if( $.isPlainObject(name) ) {
+                        if ( $.isPlainObject(name) ) {
                             $.extend(true, module, name);
                         }
-                        else if(value !== undefined) {
+                        else if (value !== undefined) {
                             module[name] = value;
                         }
                         else {
@@ -577,8 +589,8 @@
                         }
                     },
                     debug: function() {
-                        if(!settings.silent && settings.debug) {
-                            if(settings.performance) {
+                        if (!settings.silent && settings.debug) {
+                            if (settings.performance) {
                                 module.performance.log(arguments);
                             }
                             else {
@@ -588,8 +600,8 @@
                         }
                     },
                     verbose: function() {
-                        if(!settings.silent && settings.verbose && settings.debug) {
-                            if(settings.performance) {
+                        if (!settings.silent && settings.verbose && settings.debug) {
+                            if (settings.performance) {
                                 module.performance.log(arguments);
                             }
                             else {
@@ -599,19 +611,18 @@
                         }
                     },
                     error: function() {
-                        if(!settings.silent) {
+                        if (!settings.silent) {
                             module.error = Function.prototype.bind.call(console.error, console, settings.name + ':');
                             module.error.apply(console, arguments);
                         }
                     },
                     performance: {
                         log: function(message) {
-                            var
-                                currentTime,
+                            let currentTime,
                                 executionTime,
                                 previousTime
                             ;
-                            if(settings.performance) {
+                            if (settings.performance) {
                                 currentTime   = new Date().getTime();
                                 previousTime  = time || currentTime;
                                 executionTime = currentTime - previousTime;
@@ -627,8 +638,7 @@
                             module.performance.timer = setTimeout(module.performance.display, 500);
                         },
                         display: function() {
-                            var
-                                title = settings.name + ':',
+                            let title = settings.name + ':',
                                 totalTime = 0
                             ;
                             time = false;
@@ -637,12 +647,12 @@
                                 totalTime += data['Execution Time'];
                             });
                             title += ' ' + totalTime + 'ms';
-                            if(moduleSelector) {
-                                title += ' \'' + moduleSelector + '\'';
+                            if (selectorNamespace) {
+                                title += ' \'' + selectorNamespace + '\'';
                             }
-                            if( (console.group !== undefined || console.table !== undefined) && performance.length > 0) {
+                            if ((console.group !== undefined || console.table !== undefined) && performance.length > 0) {
                                 console.groupCollapsed(title);
-                                if(console.table) {
+                                if (console.table) {
                                     console.table(performance);
                                 }
                                 else {
@@ -656,33 +666,32 @@
                         }
                     },
                     invoke: function(query, passedArguments, context) {
-                        var
-                            object = instance,
+                        let object = instance,
                             maxDepth,
                             found,
                             response
                         ;
                         passedArguments = passedArguments || queryArguments;
                         context         = element         || context;
-                        if(typeof query == 'string' && object !== undefined) {
+                        if (typeof query == 'string' && object !== undefined) {
                             query    = query.split(/[\. ]/);
                             maxDepth = query.length - 1;
                             $.each(query, function(depth, value) {
-                                var camelCaseValue = (depth != maxDepth)
+                                const camelCaseValue = (depth !== maxDepth)
                                     ? value + query[depth + 1].charAt(0).toUpperCase() + query[depth + 1].slice(1)
                                     : query
                                 ;
-                                if( $.isPlainObject( object[camelCaseValue] ) && (depth != maxDepth) ) {
+                                if ( $.isPlainObject(object[camelCaseValue]) && (depth !== maxDepth) ) {
                                     object = object[camelCaseValue];
                                 }
-                                else if( object[camelCaseValue] !== undefined ) {
+                                else if (object[camelCaseValue] !== undefined) {
                                     found = object[camelCaseValue];
                                     return false;
                                 }
-                                else if( $.isPlainObject( object[value] ) && (depth != maxDepth) ) {
+                                else if(  $.isPlainObject(object[value]) && (depth !== maxDepth) ) {
                                     object = object[value];
                                 }
-                                else if( object[value] !== undefined ) {
+                                else if (object[value] !== undefined) {
                                     found = object[value];
                                     return false;
                                 }
@@ -692,32 +701,32 @@
                                 }
                             });
                         }
-                        if ( $.isFunction( found ) ) {
+                        if ($.isFunction( found ) ) {
                             response = found.apply(context, passedArguments);
                         }
-                        else if(found !== undefined) {
+                        else if (found !== undefined) {
                             response = found;
                         }
-                        if($.isArray(returnedValue)) {
+                        if ($.isArray(returnedValue)) {
                             returnedValue.push(response);
                         }
-                        else if(returnedValue !== undefined) {
+                        else if (returnedValue !== undefined) {
                             returnedValue = [returnedValue, response];
                         }
-                        else if(response !== undefined) {
+                        else if (response !== undefined) {
                             returnedValue = response;
                         }
                         return found;
                     }
                 };
-                if(methodInvoked) {
-                    if(instance === undefined) {
+                if (methodInvoked) {
+                    if (instance === undefined) {
                         module.initialize();
                     }
                     module.invoke(query);
                 }
                 else {
-                    if(instance !== undefined) {
+                    if (instance !== undefined) {
                         instance.invoke('destroy');
                     }
                     module.initialize();
@@ -741,6 +750,7 @@
 
         name         : 'Spinner',
         namespace    : 'spinner',
+        type         : '',
 
         error    : {
             method    : 'The method you called is not defined.'
@@ -757,8 +767,8 @@
         useIcon          : false,
         incIcon          : 'angle up',
         decIcon          : 'angle down',
-        incChar          : '▴',
-        decChar          : '▾',
+        incChar          : '+',
+        decChar          : '-',
         fireOnInit       : false,
 
         //the decimal place to round to if step is undefined
@@ -789,4 +799,4 @@
     };
 
 
-})( jQuery, window, document );
+})(jQuery, window, document);
