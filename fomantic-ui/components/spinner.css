@@ -1,0 +1,65 @@
+.ui.spinner input[type="number"] {
+  float: left;
+  padding: 0;
+  text-align: center;
+  font-size: 10px;
+  outline: none;
+  color: #fff;
+  pointer-events: none;
+  width: 32px;
+  height: 20px;
+  background: #0c0c0c;
+  border: 2px solid #454545;
+}
+
+.ui.spinner {
+  height: 20px;
+  user-select: none;
+  -ms-user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.ui.spinner label {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.ui.spinner .decrement,
+.ui.spinner .increment {
+  float: left;
+  display: block;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  border: 2px solid #454545;
+  line-height: 15px;
+  background: #0c0c0c;
+  border-right: 0;
+  border-radius: 16px 0 0 16px;
+  cursor: pointer;
+  transition: 0.1s linear;
+  -o-transition: 0.1s linear;
+  -ms-transition: 0.1s linear;
+  -moz-transition: 0.1s linear;
+  -webkit-transition: 0.1s linear;
+}
+
+.ui.spinner .increment {
+  top: 0;
+  border: 2px solid #454545;
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+}
+
+.ui.spinner .decrement:hover,
+.ui.spinner .increment:hover {
+  background: #1b1c1d;
+  color: #ddd;
+}
+
+.ui.spinner input[type="number"]::-webkit-inner-spin-button,
+.ui.spinner input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
