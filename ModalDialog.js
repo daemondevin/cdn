@@ -408,7 +408,7 @@ class PromptModalDialog extends ModalDialogElement {
         const dialogBody = self.shadowRoot.querySelector(".modal-dialog-body");
         const dialogInputWrapper = document.createElement("p");
         const dialogInput = document.createElement("input");
-        dialogInput.classList.add("modal-dialog-textbox");
+        dialogInput.classList.add("modal-dialog-input");
         dialogInput.type = "text";
         dialogInputWrapper.append(dialogInput);
         dialogBody.append(dialogInputWrapper);
