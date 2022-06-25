@@ -103,12 +103,6 @@
         }
     }
 
-      function titleCase(txt) {
-        return txt.replace(/\w\S*/g, function(txt) {
-            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-        });
-      };
-    
     function argumentsToArray(args) {
       return Array.prototype.slice.call(args, 0);
     }
@@ -140,7 +134,6 @@
     };
 
     this.container = function (name, options) {
-      let name = titleCase(name);
       let container = containers[name];
 
       if (!container) {
