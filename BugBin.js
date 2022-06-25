@@ -80,23 +80,15 @@
 
     //private
     function log(args, type) {
-      let color, cName;
-      
-      String.prototype.toTitleCase = function() {
-        return this.replace(/\w\S*/g, function(txt) {
-            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-        });
-      };
-      
+      let color;
+
       args = argumentsToArray(args);
 
       if (opts.enabled) {
         if (colorSupported && name !== undefined && colorTypes.indexOf(type) != -1) {
           color = (type !== 'dir') ? '%c ' : '';
-          cName = name.toTitleCase();
-          
           //hat tip: http://stackoverflow.com/questions/7505623/colors-in-javascript-console
-          args.unshift(color + cName + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
+          args.unshift(color + name + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
           console[type].apply(console, args);
           args.splice(0, 1);
         } else {
@@ -111,6 +103,12 @@
         }
     }
 
+      function titleCase(txt) {
+        return txt.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+      };
+    
     function argumentsToArray(args) {
       return Array.prototype.slice.call(args, 0);
     }
@@ -142,7 +140,8 @@
     };
 
     this.container = function (name, options) {
-            let container = containers[name];
+      let name = titleCase(name);
+      let container = containers[name];
 
       if (!container) {
         container = new BugBin(console, name, options);
