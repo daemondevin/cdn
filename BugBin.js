@@ -81,14 +81,20 @@
     //private
     function log(args, type) {
       let color;
-
+      
+      String.prototype.toTitleCase = function() {
+        return this.replace(/\w\S*/g, function(txt) {
+            return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+        });
+      };
+      
       args = argumentsToArray(args);
 
       if (opts.enabled) {
         if (colorSupported && name !== undefined && colorTypes.indexOf(type) != -1) {
           color = (type !== 'dir') ? '%c ' : '';
           //hat tip: http://stackoverflow.com/questions/7505623/colors-in-javascript-console
-          args.unshift(color + name + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
+          args.unshift(color + name.toTitleCase() + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
           console[type].apply(console, args);
           args.splice(0, 1);
         } else {
@@ -134,7 +140,7 @@
     };
 
     this.container = function (name, options) {
-      let container = containers[name];
+            let container = containers[name];
 
       if (!container) {
         container = new BugBin(console, name, options);
