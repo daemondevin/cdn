@@ -80,7 +80,7 @@
 
     //private
     function log(args, type) {
-      let color;
+      let color, cName;
       
       String.prototype.toTitleCase = function() {
         return this.replace(/\w\S*/g, function(txt) {
@@ -93,8 +93,10 @@
       if (opts.enabled) {
         if (colorSupported && name !== undefined && colorTypes.indexOf(type) != -1) {
           color = (type !== 'dir') ? '%c ' : '';
+          cName = name.toTitleCase();
+          
           //hat tip: http://stackoverflow.com/questions/7505623/colors-in-javascript-console
-          args.unshift(color + name.toTitleCase() + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
+          args.unshift(color + cName + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
           console[type].apply(console, args);
           args.splice(0, 1);
         } else {
