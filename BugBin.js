@@ -145,7 +145,7 @@
             }
           }
           verbose.push({ type: type, timestamp: time, arguments: args, stack: stack });
-    };
+    }
 
     this.container = function (name, options) {
       let container = containers[name];
