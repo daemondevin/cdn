@@ -119,11 +119,10 @@
     }
 
     function printInline(type, msg, el) {
-      typeof el != 'undefined' ? el : "pre.debugger";
-      let pre = document.querySelector(el);
-      let code = pre.querySelector('code');
+      typeof el != 'undefined' ? el : "debugger";
+      let display = document.getElementById(el);
       let text = document.createTextNode("[" + type + "] " + msg + "\n");
-      code.appendChild(text);
+      display.appendChild(text);
     }
 
     function getStack(type, args) {
