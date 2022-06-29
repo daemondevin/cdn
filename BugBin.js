@@ -69,7 +69,6 @@
           enabled: typeof options.enabled != 'undefined' ? options.enabled : true,
           verbose: typeof options.verbose != 'undefined' ? options.verbose : true,
           inline: typeof options.inline != 'undefined' ? options.inline : true,
-          inlineEl: typeof options.inlineEl != 'undefined' ? options.inlineEl : 'pre.debugger',
           color: typeof options.color != 'undefined' ? options.color : 'darkorange',
           background: typeof options.background != 'undefined' ? options.background : '#111'
         },
@@ -87,33 +86,27 @@
 
       if (opts.enabled) {
         if (colorSupported && name !== undefined && colorTypes.indexOf(type) != -1) {
-          const pre = document.querySelector(inlineEl);
-          const code = pre.querySelector('code');
-          let text;
           color = (type !== 'dir') ? '%c ' : '';
           //hat tip: http://stackoverflow.com/questions/7505623/colors-in-javascript-console
           args.unshift(color + name + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
-          if (opts.inline) {
-            text = document.createTextNode("[" + name + "] " + args + "\n");
-          }
           console[type].apply(console, args);
+          if (opts.inline) {
+            printInline(type, args);
+          }
           args.splice(0, 1);
         } else {
           if (opts.inline) {
-            text = document.createTextNode("[" + type + "] " + args + "\n");
+            printInline(type, args);
           }
           console[type].apply(console, args);
-        }
-        if (opts.inline) {
-          code.appendChild(text);
         }
       }
 
       args.push(new Date()); //add timestamp
       logs.push(args);
-        if (opts.verbose) {
-            getStack(type, args);
-        }
+      if (opts.verbose) {
+        getStack(type, args);
+      }
     }
 
     function argumentsToArray(args) {
@@ -124,6 +117,14 @@
       const ua = navigator.userAgent.toLowerCase();
       return ua.indexOf('firefox') != -1 || ua.indexOf('chrome') != -1;
     }
+
+    function printInline(type, msg, el) {
+      typeof el != 'undefined' ? el : `pre.debugger`;
+      const pre = document.querySelector(el);
+      const code = pre.querySelector('code');
+      let text = document.createTextNode("[" + type + "] " + msg + "\n");
+      code.appendChild(text);
+    };
 
     function getStack(type, args) {
         const time = new Date().toUTCString();
@@ -179,6 +180,14 @@
 
     this.verbose = function () {
       return verbose;
+    };
+
+    printInline = function (type, msg, el) {
+      typeof el != 'undefined' ? el : `pre.debugger`;
+      const pre = document.querySelector(el);
+      const code = pre.querySelector('code');
+      let text = document.createTextNode("[" + type + "] " + msg + "\n");
+      code.appendChild(text);
     };
 
     this.color = function (color) {
