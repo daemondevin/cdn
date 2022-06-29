@@ -87,8 +87,9 @@
 
       if (opts.enabled) {
         if (colorSupported && name !== undefined && colorTypes.indexOf(type) != -1) {
-          const pre = document.querySelector(inlineEl)
-              , code = pre.querySelector('code'), text;
+          const pre = document.querySelector(inlineEl);
+          const code = pre.querySelector('code');
+          let text;
           color = (type !== 'dir') ? '%c ' : '';
           //hat tip: http://stackoverflow.com/questions/7505623/colors-in-javascript-console
           args.unshift(color + name + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
