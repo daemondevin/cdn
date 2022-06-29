@@ -91,12 +91,12 @@
           args.unshift(color + name + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
           console[type].apply(console, args);
           if (opts.inline) {
-            printInline(type, args);
+            printInline(type, args, 'debugger');
           }
           args.splice(0, 1);
         } else {
           if (opts.inline) {
-            printInline(type, args);
+            printInline(type, args, 'debugger');
           }
           console[type].apply(console, args);
         }
@@ -122,7 +122,7 @@
       typeof el != 'undefined' ? el : "debugger";
       let display = document.getElementById(el);
       let text = document.createTextNode("[" + type + "] " + msg + "\n");
-      display.appendChild(text);
+      display.append(text);
     }
 
     function getStack(type, args) {
