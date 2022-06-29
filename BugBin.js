@@ -119,9 +119,9 @@
     }
 
     function printInline(type, msg, el) {
-      typeof el != 'undefined' ? el : `pre.debugger`;
-      const pre = document.querySelector(el);
-      const code = pre.querySelector('code');
+      typeof el != 'undefined' ? el : "pre.debugger";
+      let pre = document.querySelector(el);
+      let code = pre.querySelector('code');
       let text = document.createTextNode("[" + type + "] " + msg + "\n");
       code.appendChild(text);
     };
