@@ -58,8 +58,6 @@
  *     }
  * 
  * @todo Add support for console logging levels
- * @todo Add support for displaying console logging in the webpage
- * 
  */
 (function () {
 
@@ -69,12 +67,14 @@
           enabled: typeof options.enabled != 'undefined' ? options.enabled : true,
           verbose: typeof options.verbose != 'undefined' ? options.verbose : true,
           inline: typeof options.inline != 'undefined' ? options.inline : true,
+          element: typeof options.element !== 'undefined' ? options.element : '#debugger',
+          elemClass: typeof options.elemClass !== 'undefined' ? options.elemClass : 'ui small inverted divided list',
           color: typeof options.color != 'undefined' ? options.color : 'darkorange',
           background: typeof options.background != 'undefined' ? options.background : '#111'
         },
         colorTypes = 'dir|dirxml|error|info|log|warn',
         colorSupported = isColorSupported(),
-        containers = {}, logs = [], verbose = [];
+        containers = {}, cleanLogs = [], logs = [], verbose = [];
 
 
 
@@ -82,31 +82,29 @@
     function log(args, type) {
       let color;
 
-      args = argumentsToArray(args);
-
+      args = Array.prototype.slice.call(args, 0);
       if (opts.enabled) {
-        if (colorSupported && name !== undefined && colorTypes.indexOf(type) != -1) {
+        if (opts.inline) {
+          const elem = document.querySelector(opts.element);
+          elem.className = opts.elemClass;
+          elem.append(printDisplay(type, args, name));
+        }
+        if (colorSupported && name !== undefined && colorTypes.indexOf(type) !== -1) {
           color = (type !== 'dir') ? '%c ' : '';
-          //hat tip: http://stackoverflow.com/questions/7505623/colors-in-javascript-console
           args.unshift(color + name + ' ', 'color:' + opts.color + '; background:' + opts.background + '; font-weight:bold');
           console[type].apply(console, args);
-          if (opts.inline) {
-            printInline(type, args, 'debugger');
-          }
           args.splice(0, 1);
         } else {
-          if (opts.inline) {
-            printInline(type, args, 'debugger');
-          }
           console[type].apply(console, args);
         }
       }
-
-      args.push(new Date()); //add timestamp
-      logs.push(args);
+      //cleanLogs.push(args);
       if (opts.verbose) {
         getStack(type, args);
       }
+      args.push(new Date()); //add timestamp
+      logs.push(args);
+
     }
 
     function argumentsToArray(args) {
@@ -117,12 +115,24 @@
       const ua = navigator.userAgent.toLowerCase();
       return ua.indexOf('firefox') != -1 || ua.indexOf('chrome') != -1;
     }
-
-    function printInline(type, msg, el) {
-      typeof el != 'undefined' ? el : "debugger";
-      let display = document.getElementById(el);
-      let text = document.createTextNode("[" + type + "] " + msg + "\n");
-      display.append(text);
+      
+    function printDisplay(type, msg, name) {
+        let content, header, item;
+            item = document.createElement("div");
+            item.className = type + " item";
+            content = document.createElement("div");
+            content.className = "content";
+            header = document.createElement("div");
+            header.className = "header";
+            header.append(type.toUpperCase() + " | " + name.toUpperCase() + ":");
+            content.append(header);
+            if (typeof msg.toString() === "object") {
+                content.append(JSON.stringify(msg, null, "\t") + "");
+            } else {
+                content.append(" " + msg.toString());
+            }
+            item.append(content);
+            return item;
     }
 
     function getStack(type, args) {
@@ -131,11 +141,11 @@
         if (!type) type = 'log';
         if (!args || args.length === 0) return;
 
-        var stack = false;
+        let stack = false;
           try { throw Error('') } catch (error) {
-            var stackParts = error.stack.split('\n');
+            let stackParts = error.stack.split('\n');
             stack = [];
-            for (var i = 0; i < stackParts.length; i++) {
+            for (let i = 0; i < stackParts.length; i++) {
               if (stackParts[i].indexOf('BugBin.js') > -1 ||
               stackParts[i] === 'Error') {
                 continue;
@@ -175,6 +185,10 @@
 
     this.logs = function () {
       return logs;
+    };
+
+    this.cleanLogs = function () {
+      return cleanLogs;
     };
 
     this.verbose = function () {
