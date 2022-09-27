@@ -71,9 +71,11 @@ const vfs = function SystemBin() {
                 node = this.tree.insert(name, parent, {
                     type: "file",
                     lastModified: new Date().getTime(),
+                    size: "",
                     contents: ""
                 });
             }
+            node.size = mode === ">" ? new Blob([contents]).size : new Blob([node.contents + contents]).size;
             node.contents = mode === ">" ? contents : node.contents + contents;
         } else {
             if (node === undefined) {
@@ -125,6 +127,7 @@ const vfs = function SystemBin() {
         if (properties.type === "file") {
             properties.contents = target.contents;
             properties.lastModified = target.lastMoodified;
+            properties.size = target.size;
         }
         let node = this.tree.insert(target.key, destination, properties);
         for (let i = 0; i < target.children.length; i++) {
