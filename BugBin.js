@@ -124,7 +124,7 @@
             content.className = "content";
             header = document.createElement("div");
             header.className = "header";
-            header.append(type.toUpperCase() + " | " + name.toUpperCase() + ":");
+            header.append("<strong>[" + name.toUpperCase() + "]</strong> | " + type.toUpperCase() + ":");
             content.append(header);
             if (typeof msg.toString() === "object") {
                 content.append(JSON.stringify(msg, null, "\t") + "");
