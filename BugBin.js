@@ -117,14 +117,16 @@
     }
       
     function printDisplay(type, msg, name) {
-        let content, header, item;
+        let content, header, item, strong;
             item = document.createElement("div");
             item.className = type + " item";
             content = document.createElement("div");
             content.className = "content";
             header = document.createElement("div");
             header.className = "header";
-            header.append("<strong>[" + name.toUpperCase() + "]</strong> | " + type.toUpperCase() + ":");
+            strong = document.createElement("strong");
+            strong.append("[" + name.toUpperCase() + "] | " + type.toUpperCase() + ":")
+            header.append(strong);
             content.append(header);
             if (typeof msg.toString() === "object") {
                 content.append(JSON.stringify(msg, null, "\t") + "");
