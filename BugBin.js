@@ -52,7 +52,7 @@
  *     {
  *         "enabled": true,
  *         "verbose": true,
- *         "inline": true, // not implemented yet
+ *         "inline": true,
  *         "color": "darkorange", // if the browser supports styles
  *         "background": "#111", // automatically checks for suport
  *     }
