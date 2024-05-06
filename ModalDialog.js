@@ -475,10 +475,10 @@ class modal {
     }
 }
 
-if (typeof module != 'undefined' && module.exports) {
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
     module.exports = modal; // Node / CommonJS...
 } else if (typeof define === 'function' && define.amd) {
-    define('Module', [], modal); // or RequireJS / AMD...
+    define([], () => modal); // or RequireJS / AMD...
 } else {
-    global.modal = modal; // or browser
+    window.modal = modal; // or browser
 }
