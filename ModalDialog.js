@@ -474,3 +474,11 @@ class modal {
         return await promptDialog.setPrompt(content, title);
     }
 }
+
+if (typeof module != 'undefined' && module.exports) {
+    module.exports = modal; // Node / CommonJS...
+} else if (typeof define === 'function' && define.amd) {
+    define('Module', [], modal); // or RequireJS / AMD...
+} else {
+    global.modal = modal; // or browser
+}
