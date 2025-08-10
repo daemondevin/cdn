@@ -88,8 +88,8 @@
      * const logger = new BugBin(console, 'App', { color: 'blue', inline: false });
      * logger.log('Hello world!');
      */
-    function BugBin(consoleObj, name, options) {
-      let options = options || {},
+    function BugBin(consoleObj, name, config) {
+      let options = config || {},
           opts = {
             enabled: typeof options.enabled != 'undefined' ? options.enabled : true,
             verbose: typeof options.verbose != 'undefined' ? options.verbose : true,
