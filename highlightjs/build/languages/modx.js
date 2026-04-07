@@ -35,12 +35,18 @@
  * @returns {LanguageDefinition}
  */
 export default function (hljs) {
+    
+    // Container for recursive MODX tags
+    const MODX_TAGS = {
+        contains: [] // We will fill this in later in the definition
+    };
+    
     // Backtick string:  `any content`
     const BACKTICK_STRING = {
         scope: 'string',
         begin: /`/,
         end: /`/,
-        contains: [], // no inner highlighting — content is literal
+        contains: [MODX_REVO_TAGS], // Allow tags inside backticks
     };
 
     // Output modifier/filter chain:  :modifier  or  :modifier=`value`
@@ -49,7 +55,12 @@ export default function (hljs) {
         scope: 'built_in',
         begin: /:[a-zA-Z_][a-zA-Z0-9_]*/,
         end: /(?=\s*(?:&|\?|:|\]\]|$))/,
-        contains: [BACKTICK_STRING],
+        contains: [{
+                scope: 'operator',
+                match: /=/,
+            },
+            BACKTICK_STRING
+        ],
     };
 
     // Tag parameter:  &name=`value`
@@ -127,12 +138,13 @@ export default function (hljs) {
                 match: /!/,
             },
             ...extraContains,
-            // Tag name / identifier
+            // Tag name/identifier
             {
                 scope: nameScope,
                 match: namePattern,
             },
             ...TAG_BODY_CONTAINS,
+            MODX_TAGS // Allow nested tags
         ],
     });
 
@@ -184,7 +196,7 @@ export default function (hljs) {
     // Snippet/general tag: [[SnippetName]]  [[!SnippetName]]
     // This is the catch-all; must come last so sigil-prefixed tags take priority.
     const SNIPPET_TAG = makeTag(
-            /\[\[!?\s*/,
+            /\[\[\s*!?\s*/,
             'title.function', // [[snippetName]]
             /[a-zA-Z_][a-zA-Z0-9_-]*/);
 
@@ -272,6 +284,22 @@ export default function (hljs) {
         begin: /\{\*/,
         end: /\*\}/,
     };
+
+    // All things Revolution
+    const MODX_REVO_TAGS = [
+        SETTING_TAG,
+        TV_TAG,
+        PLACEHOLDER_TAG,
+        CHUNK_TAG,
+        LINK_TAG,
+        LEXICON_TAG,
+        FASTFIELD_TAG,
+        SNIPPET_TAG
+    ];
+
+    // This allows the tags to "know" 
+    // about themselves inside backticks
+    MODX_TAGS.contains.push(...MODX_REVO_TAGS);
 
     // HTML BASE
     const HTML = hljs.getLanguage('xml');
