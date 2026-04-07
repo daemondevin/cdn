@@ -10,11 +10,11 @@
  *   [[+placeholder]]         — placeholders
  *   [[$chunk]]               — chunks
  *   [[++setting]]            — system settings
- *   [[~id]]                  — links / resource URLs
+ *   [[~id]]                  — links/resource URLs
  *   [[%key]]                 — lexicon strings
  *   [[#field]]               — fastField syntax
  *   &param=`value`           — tag parameters
- *   :filter=`value`          — output filters / modifiers
+ *   :filter=`value`          — output filters/modifiers
  *   @INLINE / @CODE / @FILE  — inline chunk binding prefixes
  *   @TEMPLATE / @BINDING     — inline chunk binding prefixes
  *   {{+placeholder}}         — pdoTools fenom placeholders
@@ -43,8 +43,8 @@ export default function (hljs) {
         contains: [], // no inner highlighting — content is literal
     };
 
-    // Output modifier / filter chain:  :modifier  or  :modifier=`value`
-    // e.g.  :default=`none`  :htmlent  :nl2br
+    // Output modifier/filter chain:  :modifier  or  :modifier=`value`
+    // e.g.  :default=`none`:htmlent:nl2br
     const OUTPUT_FILTER = {
         scope: 'built_in',
         begin: /:[a-zA-Z_][a-zA-Z0-9_]*/,
@@ -94,7 +94,7 @@ export default function (hljs) {
     ];
 
     // MODX comment tag  [[-  comment  ]]
-    // Recognised before all other tags so it takes priority.
+    // Recognized before all other tags so it takes priority.
     const COMMENT_TAG = {
         scope: 'comment',
         begin: /\[\[\s*-/,
@@ -162,7 +162,7 @@ export default function (hljs) {
             'variable.constant', // [[++system.setting]]
             /[a-zA-Z_][a-zA-Z0-9_.+-]*/);
 
-    // Link / URL: [[~id]]  [[!~id]]  [[~[[*id]]]]
+    // Link/URL: [[~id]]  [[!~id]]  [[~[[*id]]]]
     const LINK_TAG = makeTag(
             /\[\[!?\s*~/,
             'number', // [[~42]]  [[~[[*id]]]]
@@ -181,16 +181,15 @@ export default function (hljs) {
             'attribute', // [[#pagetitle]]  [[#42.content]]
             /[\d]*\.?[a-zA-Z_][a-zA-Z0-9_-]*/);
 
-    // Snippet / general tag: [[SnippetName]]  [[!SnippetName]]
+    // Snippet/general tag: [[SnippetName]]  [[!SnippetName]]
     // This is the catch-all; must come last so sigil-prefixed tags take priority.
     const SNIPPET_TAG = makeTag(
             /\[\[!?\s*/,
             'title.function', // [[snippetName]]
             /[a-zA-Z_][a-zA-Z0-9_-]*/);
 
-    // pdoTools / Fenom tag syntax
+    // pdoTools/Fenom tag syntax
     // pdoTools introduces a Fenom template engine with its own tag wrappers.
-    //
     // {$var}  — fenom variable
     const FENOM_VAR = {
         scope: 'template-variable',
@@ -288,21 +287,21 @@ export default function (hljs) {
             FENOM_COMMENT,
 
             // Sigil-prefixed MODX tags (specific → general)
-            SETTING_TAG, // [[++  must precede PLACEHOLDER_TAG ([[+)
-            TV_TAG, // [[*
-            PLACEHOLDER_TAG, // [[+
-            CHUNK_TAG, // [[$
-            LINK_TAG, // [[~
-            LEXICON_TAG, // [[%
-            FASTFIELD_TAG, // [[#
-            SNIPPET_TAG, // [[  (catch-all, must be last)
+            SETTING_TAG,         // [[++  must precede PLACEHOLDER_TAG ([[+)
+            TV_TAG,              // [[*
+            PLACEHOLDER_TAG,     // [[+
+            CHUNK_TAG,           // [[$
+            LINK_TAG,            // [[~
+            LEXICON_TAG,         // [[%
+            FASTFIELD_TAG,       // [[#
+            SNIPPET_TAG,         // [[  (catch-all, must be last)
 
-            // pdoTools / Fenom
+            // pdoTools/Fenom
             FENOM_CONTROL,
             FENOM_VAR,
-            PDO_PLACEHOLDER, // {{+  must precede PDO_CHUNK ({{$)
-            PDO_CHUNK, // {{$
-            PDO_LEXICON, // {%...%}
+            PDO_PLACEHOLDER,     // {{+  must precede PDO_CHUNK ({{$)
+            PDO_CHUNK,           // {{$
+            PDO_LEXICON,         // {%...%}
 
             // Binding prefixes that appear outside a tag context
             // (e.g. in a chunk's source field or inline template)
