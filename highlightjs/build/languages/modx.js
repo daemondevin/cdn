@@ -46,7 +46,14 @@ export default function (hljs) {
         scope: 'string',
         begin: /`/,
         end: /`/,
-        contains: [MODX_TAGS], // Allow tags inside backticks
+        contains: [
+            {
+                begin: /<[a-zA-Z0-9]+/, 
+                end: />/,
+                subLanguage: 'xml' 
+            },
+            MODX_TAGS
+        ], // Allow tags inside backticks
     };
 
     // Output modifier/filter chain:  :modifier  or  :modifier=`value`
