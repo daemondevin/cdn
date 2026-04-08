@@ -48,38 +48,58 @@ export default function (hljs) {
         end: /`/,
         contains: [
             {
-                begin: /<[a-zA-Z0-9]+/, 
+                begin: /<(?=[^`>]+>)/, 
                 end: />/,
-                subLanguage: 'xml' 
+                subLanguage: 'xml',
+                relevance: 0
             },
             MODX_TAGS
         ], // Allow tags inside backticks
+        relevance: 0
     };
 
     // Output modifier/filter chain:  :modifier  or  :modifier=`value`
     // e.g.  :default=`none`:htmlent:nl2br
+    const FILTER_VALUE = {
+        scope: 'string',
+        begin: /`/,
+        end: /`/,
+        endsParent: true,
+        contains: [MODX_TAGS],
+    };
+    
     const OUTPUT_FILTER = {
         scope: 'built_in',
         begin: /:[a-zA-Z_][a-zA-Z0-9_]*/,
-        end: /(?=\s*(?:&|\?|:|\]\]|$))/,
-        contains: [{
-                scope: 'operator',
-                match: /=/,
-            },
-            BACKTICK_STRING
+        end: /(?=\s*(?:&|:|\]\]))/,
+        contains: [
+            { scope: 'operator', match: /=/ },
+            FILTER_VALUE,
         ],
     };
 
-    // Tag parameter:  &name=`value`
+    // Inline binding prefix (used inside backtick values or as chunk prefix)
+    // @INLINE  @CODE  @FILE  @TEMPLATE  @BINDING
+    const BINDING_PREFIX = {
+        scope: 'keyword',
+        match: /@(?:INLINE|CODE|FILE|TEMPLATE|BINDING)\b/,
+    };
+
+    const PARAM_VALUE = {
+        scope: 'string',
+        begin: /`/,
+        end: /`/,
+        endsParent: true,
+    };
+    
     const PARAMETER = {
         scope: 'attr',
         begin: /&[a-zA-Z_][a-zA-Z0-9_-]*/,
-        end: /(?=\s*(?:&|\?|:|\]\]|$))/,
-        contains: [{
-                scope: 'operator',
-                match: /=/,
-            },
-            BACKTICK_STRING,
+        end: /(?=\s*(?:&|:|\]\]))/,
+        contains: [
+            { scope: 'operator', match: /=/ },
+            PARAM_VALUE,
+            BINDING_PREFIX,
         ],
     };
 
@@ -93,13 +113,6 @@ export default function (hljs) {
                 match: /[a-zA-Z_][a-zA-Z0-9_-]*/,
             },
         ],
-    };
-
-    // Inline binding prefix (used inside backtick values or as chunk prefix)
-    // @INLINE  @CODE  @FILE  @TEMPLATE  @BINDING
-    const BINDING_PREFIX = {
-        scope: 'keyword',
-        match: /@(?:INLINE|CODE|FILE|TEMPLATE|BINDING)\b/,
     };
 
     // Shared param/filter block used inside most tags
@@ -117,11 +130,8 @@ export default function (hljs) {
         scope: 'comment',
         begin: /\[\[\s*-/,
         end: /\]\]/,
-        contains: [
-            hljs.inherit(hljs.COMMENT(), {
-                scope: 'comment'
-            }),
-        ],
+        contains: [],
+        relevance: 10,
     };
     
     /**
