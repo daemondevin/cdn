@@ -40,6 +40,15 @@ export default function (hljs) {
     const MODX_TAGS = {
         contains: [] // We will fill this in later in the definition
     };
+
+    // JSON embedded inside a backtick value:  &param=`{"key":"val"}`  or  &param=`[1,2,3]`
+    // Triggered by a leading { or [ so plain strings are unaffected.
+    const JSON_EMBEDDED = {
+        begin: /(?=[{\[])/,
+        end: /(?=`)/,
+        subLanguage: 'json',
+        relevance: 2,
+    };
     
     // Backtick string:  `any content`
     const BACKTICK_STRING = {
@@ -53,6 +62,7 @@ export default function (hljs) {
                 subLanguage: 'xml',
                 relevance: 0
             },
+            JSON_EMBEDDED,
             MODX_TAGS
         ], // Allow tags inside backticks
         relevance: 0
@@ -90,6 +100,9 @@ export default function (hljs) {
         begin: /`/,
         end: /`/,
         endsParent: true,
+        contains: [
+            JSON_EMBEDDED,
+        ],
     };
     
     const PARAMETER = {
