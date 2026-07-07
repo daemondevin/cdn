@@ -1,372 +1,643 @@
-/**
- * A hybrid highlight.js language definition for both MODX Revolution
- * and HTML with support for Fenom syntax and fastField tags.
+/*
+ * MODX Revolution + Fenom + FastField
+ * Highlight.js Language Definition
  *
- * Covers:
- *   [[snippet]]              — snippets & cached calls
- *   [[!snippet]]             — uncached calls
- *   [[-comment]]             — MODX comments
- *   [[*tv]]                  — template variables
- *   [[+placeholder]]         — placeholders
- *   [[$chunk]]               — chunks
- *   [[++setting]]            — system settings
- *   [[~id]]                  — links/resource URLs
- *   [[%key]]                 — lexicon strings
- *   [[#field]]               — fastField syntax
- *   &param=`value`           — tag parameters
- *   :filter=`value`          — output filters/modifiers
- *   @INLINE / @CODE / @FILE  — inline chunk binding prefixes
- *   @TEMPLATE / @BINDING     — inline chunk binding prefixes
- *   {{+placeholder}}         — pdoTools fenom placeholders
- *   {{$chunk}}               — pdoTools fenom chunks
- *   {%key%}                  — pdoTools lexicon strings
- *   [PropertySet]            — property set syntax
- *   <tag>                    — HTML syntax
+ * Supports:
+ *  • HTML
+ *  • MODX Revolution Tags
+ *  • Fenom Templates
+ *  • FastField
+ *  • Nested MODX
+ *  • Output Filters
+ *  • Bindings
  *
- * Registration:
- *   import modx from 'path/to/modx.js';
- *   hljs.registerLanguage('modx', modx);
- *
- *   // Or auto-register if hljs is already on window:
- *   hljs.registerLanguage('modx', modx);
- *   hljs.highlightAll();
- *
- * @param {HLJSApi} hljs
- * @returns {LanguageDefinition}
+ * Designed for Highlight.js v11+
  */
+
 export default function (hljs) {
-    
-    // Container for recursive MODX tags
-    const MODX_TAGS = {
-        contains: [] // We will fill this in later in the definition
+
+    const XML = hljs.getLanguage("xml");
+
+    if (!XML) {
+        throw new Error(
+            "The MODX language requires the XML language to be registered first.");
+    }
+
+    const source = (re) =>
+    re instanceof RegExp ? re.source : re;
+
+    const either = (...values) =>
+    "(?:" + values.map(source).join("|") + ")";
+
+    const words = (list) =>
+    "\\b(?:" + list.join("|") + ")\\b";
+
+    const optional = (value) =>
+    "(?:" + source(value) + ")?";
+
+    const lookahead = (value) =>
+    "(?=" + source(value) + ")";
+
+    const lookbehind = (value) =>
+    "(?<=" + source(value) + ")";
+
+    const IDENTIFIER =
+        /[A-Za-z_][A-Za-z0-9_.-]*/;
+
+    const NUMBER =
+        /\b\d+(?:\.\d+)?\b/;
+
+    const VARIABLE =
+        /\$[A-Za-z_][A-Za-z0-9_.]*/;
+
+    const PROPERTY =
+        /&[A-Za-z_][A-Za-z0-9_.-]*/;
+
+    const FILTER =
+        /:[A-Za-z_][A-Za-z0-9_-]*/;
+
+    const PROPERTY_SET =
+        /@[A-Za-z_][A-Za-z0-9_.-]*/;
+
+    const PREFIXES = {
+        tv: "\\*",
+        setting: "\\+\\+",
+        placeholder: "\\+",
+        chunk: "\\-",
+        lexicon: "%",
+        link: "~",
+        fastfield: "#"
     };
 
-    // JSON embedded inside a backtick value:  &param=`{"key":"val"}`  or  &param=`[1,2,3]`
-    // Triggered by a leading { or [ so plain strings are unaffected.
-    const JSON_EMBEDDED = {
-        begin: /(?=[{\[])/,
-        end: /(?=`)/,
-        subLanguage: 'json',
-        relevance: 2,
-    };
-    
-    // Backtick string:  `any content`
-    const BACKTICK_STRING = {
-        scope: 'string',
-        begin: /`/,
-        end: /`/,
+    // Fenom Keywords
+    const FENOM_KEYWORDS = [
+        "if",
+        "elseif",
+        "else",
+        "foreach",
+        "foreachelse",
+        "for",
+        "while",
+        "switch",
+        "case",
+        "default",
+        "break",
+        "continue",
+        "set",
+        "unset",
+        "capture",
+        "block",
+        "extends",
+        "include",
+        "insert",
+        "import",
+        "macro",
+        "call",
+        "literal",
+        "ignore",
+        "strip",
+        "parent"
+    ];
+
+    // MODX Output Filters
+    const OUTPUT_FILTERS = [
+        "default",
+        "empty",
+        "notempty",
+        "isempty",
+        "isnotempty",
+        "is",
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "contains",
+        "icontains",
+        "memberof",
+        "between",
+        "then",
+        "else",
+        "replace",
+        "escape",
+        "htmlentities",
+        "htmlent",
+        "stripTags",
+        "stripString",
+        "ucase",
+        "lcase",
+        "ucwords",
+        "ucfirst",
+        "reverse",
+        "truncate",
+        "ellipsis",
+        "limit",
+        "date",
+        "strtotime",
+        "dateformat",
+        "nl2br",
+        "md5",
+        "sha1",
+        "json_encode",
+        "json_decode",
+        "join",
+        "split",
+        "append",
+        "prepend"
+    ];
+
+    let MODX_TAG;
+    let FENOM_TAG;
+    let BACKTICK_STRING;
+    let PROPERTY_VALUE;
+    let OUTPUT_FILTER;
+    let FASTFIELD_TAG;
+
+    const JSON_STRING = {
+        className: "string",
+        begin: /"/,
+        end: /"/,
         contains: [
-            {
-                begin: /<(?=[^`>]+>)/, 
-                end: />/,
-                subLanguage: 'xml',
-                relevance: 0
-            },
-            JSON_EMBEDDED,
-            MODX_TAGS
-        ], // Allow tags inside backticks
+            hljs.BACKSLASH_ESCAPE,
+            MODX_TAG,
+            FENOM_TAG
+        ]
+    };
+
+    const JSON = hljs.getLanguage("json");
+    const MODX_JSON = hljs.inherit(JSON, {
+        contains: [
+            ...JSON.contains,
+            MODX_TAG,
+            FENOM_TAG
+        ]
+    });
+
+    const JSON_EMBEDDED = {
+        begin: /(?=\s*[\{\[])/,
+        end: /(?=`)/,
+        subLanguage: "json",
         relevance: 0
     };
 
-    // Output modifier/filter chain:  :modifier  or  :modifier=`value`
-    // e.g.  :default=`none`:htmlent:nl2br
-    const FILTER_VALUE = {
-        scope: 'string',
-        begin: /`/,
-        end: /`/,
-        endsParent: true,
-        contains: [MODX_TAGS],
-    };
-    
-    const OUTPUT_FILTER = {
-        scope: 'built_in',
-        begin: /:[a-zA-Z_][a-zA-Z0-9_]*/,
-        end: /(?=\s*(?:&|:|\]\]))/,
-        contains: [
-            { scope: 'operator', match: /=/ },
-            FILTER_VALUE,
-        ],
+    const FENOM_COMMENT = {
+        scope: "comment",
+        begin: /\{\*/,
+        end: /\*\}/
     };
 
-    // Inline binding prefix (used inside backtick values or as chunk prefix)
-    // @INLINE  @CODE  @FILE  @TEMPLATE  @BINDING
-    const BINDING_PREFIX = {
-        scope: 'keyword',
-        match: /@(?:INLINE|CODE|FILE|TEMPLATE|BINDING)\b/,
+    const OPERATOR = {
+        scope: "operator",
+        begin: /==|!=|<=|>=|\|\||&&|=>|=|:|\||\.|,|\+|-|\*|\/|%/
     };
 
-    const PARAM_VALUE = {
-        scope: 'string',
-        begin: /`/,
-        end: /`/,
-        endsParent: true,
-        contains: [
-            JSON_EMBEDDED,
-        ],
-    };
-    
-    const PARAMETER = {
-        scope: 'attr',
-        begin: /&[a-zA-Z_][a-zA-Z0-9_-]*/,
-        end: /(?=\s*(?:&|:|\]\]))/,
-        contains: [
-            { scope: 'operator', match: /=/ },
-            PARAM_VALUE,
-            BINDING_PREFIX,
-        ],
+    const IDENTIFIER_MODE = {
+        scope: "title",
+        begin: IDENTIFIER
     };
 
-    // Property set:  [MySet]  — appended to a tag name before params
-    const PROPERTY_SET = {
-        scope: 'meta',
-        begin: /\[/,
-        end: /\]/,
+    const VARIABLE_MODE = {
+        scope: "variable",
+        begin: VARIABLE,
         contains: [{
-                scope: 'meta string',
-                match: /[a-zA-Z_][a-zA-Z0-9_-]*/,
-            },
-        ],
+                scope: "property",
+                begin: /\.[A-Za-z_][A-Za-z0-9_]*/
+            }
+        ]
     };
 
-    // Shared param/filter block used inside most tags
-    const TAG_BODY_CONTAINS = [
-        OUTPUT_FILTER,
-        PARAMETER,
-        PROPERTY_SET,
-        BINDING_PREFIX,
-        BACKTICK_STRING,
+    const SINGLE_QUOTE_STRING = {
+        scope: "string",
+        begin: /'/,
+        end: /'/,
+        contains: [
+            hljs.BACKSLASH_ESCAPE
+        ]
+    };
+
+    const DOUBLE_QUOTE_STRING = {
+        scope: "string",
+        begin: /"/,
+        end: /"/,
+        contains: [
+            hljs.BACKSLASH_ESCAPE
+        ]
+    };
+
+    BACKTICK_STRING = {
+        scope: "string",
+        begin: /`/,
+        end: /`/,
+        contains: [
+            hljs.BACKSLASH_ESCAPE,
+            MODX_TAG,
+            FENOM_TAG,
+            JSON_EMBEDDED,
+            FASTFIELD_TAG
+        ]
+    };
+
+    const PROPERTY_MODE = {
+        scope: "attr",
+        begin: PROPERTY
+    };
+
+    OUTPUT_FILTER = {
+        scope: "keyword",
+        begin: new RegExp(words(OUTPUT_FILTERS))
+    };
+
+    const MODX_BINDING = {
+        scope: "built_in",
+        begin: /@(FILE|INLINE|CHUNK|SELECT|CODE|EVAL|RESOURCE)\b/
+    };
+
+    const BOOLEAN = {
+        scope: "literal",
+        begin: /\b(true|false|null)\b/
+    };
+
+    let FENOM_EXPRESSION;
+    let FENOM_ARGUMENTS;
+    let FENOM_FUNCTION;
+    let FENOM_MODIFIER;
+    let FENOM_VARIABLE;
+    let FENOM_BLOCK;
+
+    FENOM_VARIABLE = {
+        scope: "variable",
+        begin: /\$/,
+        end: /(?=[^\w.$\[\]-]|$)/,
+        contains: [{
+                scope: "title",
+                begin: IDENTIFIER
+            }, {
+                scope: "property",
+                begin: /\.[A-Za-z_][A-Za-z0-9_]*/
+            }, {
+                scope: "property",
+                begin: /\[['"][^'"]+['"]\]/
+            }, {
+                scope: "number",
+                begin: /\[\d+\]/
+            }
+        ]
+    };
+
+    FENOM_FUNCTION = {
+        scope: "title.function",
+        begin: IDENTIFIER,
+        end: /\(/,
+        excludeEnd: true
+    };
+
+    FENOM_MODIFIER = {
+        scope: "built_in",
+        begin: /\|/,
+        end: /(?=[:|}\s])/,
+        excludeBegin: true,
+        contains: [{
+                begin: IDENTIFIER
+            }
+        ]
+    };
+
+    FENOM_ARGUMENTS = {
+        begin: /\(/,
+        end: /\)/,
+        contains: [
+            NUMBER,
+            BOOLEAN,
+            VARIABLE_MODE,
+            SINGLE_QUOTE_STRING,
+            DOUBLE_QUOTE_STRING,
+            OPERATOR,
+            "self"
+        ]
+    };
+
+    FENOM_EXPRESSION = {
+        contains: [
+            VARIABLE_MODE,
+            NUMBER,
+            BOOLEAN,
+            IDENTIFIER_MODE,
+            FENOM_FUNCTION,
+            FENOM_ARGUMENTS,
+            FENOM_MODIFIER,
+            OPERATOR,
+            SINGLE_QUOTE_STRING,
+            DOUBLE_QUOTE_STRING
+        ]
+    };
+
+    FENOM_BLOCK = {
+        scope: "template-tag",
+        begin: /\{/,
+        end: /\}/,
+        contains: [
+            FENOM_COMMENT, {
+                scope: "keyword",
+                begin: new RegExp(words(FENOM_KEYWORDS))
+            },
+            FENOM_EXPRESSION
+        ]
+    };
+
+    const FENOM_VARIABLE_BLOCK = {
+        scope: "template-tag",
+        begin: /\{\$/,
+        end: /\}/,
+        contains: [
+            FENOM_VARIABLE,
+            FENOM_MODIFIER,
+            NUMBER,
+            BOOLEAN,
+            OPERATOR
+        ]
+    };
+
+    const FENOM_CLOSE = {
+        scope: "keyword",
+        begin: /\{\/[A-Za-z]+\}/
+    };
+
+    FENOM_TAG = {
+        contains: [
+            FENOM_COMMENT,
+            FENOM_VARIABLE_BLOCK,
+            FENOM_CLOSE,
+            FENOM_BLOCK
+        ]
+    };
+
+    let MODX_PROPERTY_VALUE;
+    let MODX_PROPERTY;
+    let MODX_FILTER;
+    let MODX_ARGUMENT;
+    let MODX_INNER;
+
+    const MODX_OPEN = {
+        scope: "punctuation",
+        variants: [{
+                begin: /\[\[/
+            }, {
+                begin: /\[\[!/
+            }
+        ]
+    };
+
+    const MODX_CLOSE = {
+        scope: "punctuation",
+        begin: /\]\]/
+    };
+
+    const TV = {
+        scope: "variable",
+        begin: /\*[A-Za-z_][\w.-]*/
+    };
+
+    const PLACEHOLDER = {
+        scope: "variable",
+        begin: /\+[A-Za-z_][\w.-]*/
+    };
+
+    const SYSTEM_SETTING = {
+        scope: "built_in",
+        begin: /\+\+[A-Za-z_][\w.-]*/
+    };
+
+    const LEXICON = {
+        scope: "string.special",
+        begin: /\%[A-Za-z0-9_.-]+/
+    };
+
+    const RESOURCE_LINK = {
+        scope: "link",
+        begin: /\~(?:\d+|\[\[)/
+    };
+
+    const CHUNK = {
+        scope: "title.class",
+        begin: /\-[A-Za-z0-9_.-]+/
+    };
+
+    const SNIPPET = {
+        scope: "title.function",
+        begin: /\b[A-Za-z_][A-Za-z0-9_.-]*/
+    };
+
+    MODX_PROPERTY = {
+        begin: /&/,
+        contains: [{
+                scope: "attr",
+                begin: /[A-Za-z_][A-Za-z0-9_.-]*/
+            }, {
+                scope: "operator",
+                begin: /=/
+            }
+        ]
+    };
+
+    MODX_FILTER = {
+        begin: /:/,
+        contains: [{
+                scope: "keyword",
+                begin: new RegExp(words(OUTPUT_FILTERS))
+            }, {
+                scope: "operator",
+                begin: /=/
+            }
+        ]
+    };
+
+    MODX_PROPERTY_VALUE = {
+        begin: /=/,
+        contains: [
+            BACKTICK_STRING,
+            NUMBER,
+            BOOLEAN,
+            MODX_TAG,
+            FENOM_TAG
+        ]
+    };
+
+    MODX_INNER = {
+        contains: [
+            TV,
+            PLACEHOLDER,
+            SYSTEM_SETTING,
+            RESOURCE_LINK,
+            LEXICON,
+            CHUNK,
+            SNIPPET,
+            MODX_PROPERTY,
+            MODX_PROPERTY_VALUE,
+            MODX_FILTER,
+            NUMBER,
+            BOOLEAN,
+            FENOM_TAG
+        ]
+    };
+
+    MODX_TAG = {
+        scope: "template-tag",
+        begin: /\[\[!?/,
+        end: /\]\]/,
+        contains: [
+            MODX_INNER
+        ]
+    };
+
+    MODX_TAG.contains.push(
+        MODX_TAG,
+        MODX_INNER,
+        FENOM_TAG
+    );
+
+    FASTFIELD_TAG = {
+        scope: "variable",
+        begin: /\[\[#/,
+        end: /\]\]/,
+        contains: [
+            NUMBER, {
+                scope: "property",
+                begin: /\.[A-Za-z_][A-Za-z0-9_.]*/
+            },
+            MODX_TAG
+        ]
+    };
+
+    const MODX_TV = {
+        scope: "variable.language.modx.tv",
+        begin: /\*[A-Za-z_][A-Za-z0-9_.-]*/
+    };
+
+    const MODX_SETTING = {
+        scope: "variable.language.modx.setting",
+        begin: /\+\+[A-Za-z_][A-Za-z0-9_.-]*/
+    };
+
+    const MODX_PLACEHOLDER = {
+        scope: "variable.language.modx.placeholder",
+        begin: /\+[A-Za-z_][A-Za-z0-9_.-]*/
+    };
+
+    const MODX_LEXICON = {
+        scope: "string.language.modx.lexicon",
+        begin: /%[A-Za-z0-9_.-]+/
+    };
+
+    const MODX_LINK = {
+        scope: "symbol.language.modx.link",
+        begin: /~(?:\d+|\[\[)/
+    };
+
+    const MODX_CHUNK = {
+        scope: "title.class.modx.chunk",
+        begin: /-[A-Za-z0-9_.-]+/
+    };
+
+    const MODX_SNIPPET = {
+        scope: "title.function.modx.snippet",
+        begin: /\b[A-Za-z_][A-Za-z0-9_.-]*(?=\s*(?:\?|&|\]\]))/
+    };
+
+    MODX_PROPERTY = {
+        begin: /&[A-Za-z_][A-Za-z0-9_.-]*/,
+        scope: "attr.modx.property"
+    };
+
+    const MODX_BINDING = {
+        scope: "meta.language.modx.binding",
+        begin: /@(FILE|INLINE|CHUNK|SELECT|CODE|EVAL|RESOURCE)\b/
+    };
+
+    const MODX_BINDING_VALUE = {
+        begin: /(?<=@(FILE|INLINE|CHUNK|SELECT|CODE|EVAL|RESOURCE)\s+)/,
+        end: /(?=&|\]\])/,
+        contains: [
+            MODX_TAG,
+            FENOM_TAG,
+            FASTFIELD_TAG,
+            hljs.APOS_STRING_MODE,
+            hljs.QUOTE_STRING_MODE
+        ]
+    };
+    
+    FASTFIELD_TAG.contains.push(
+        NUMBER,
+        MODX_TAG
+    );
+    
+    MODX_CONTENT.contains = [
+        MODX_TAG,
+        FENOM_TAG,
+        FASTFIELD_TAG,
+        MODX_TV,
+        MODX_SETTING,
+        MODX_PLACEHOLDER,
+        MODX_LEXICON,
+        MODX_LINK,
+        MODX_CHUNK,
+        MODX_SNIPPET,
+        MODX_PROPERTY,
+        MODX_BINDING,
+        MODX_BINDING_VALUE,
+        NUMBER,
+        BOOLEAN,
+        BACKTICK_STRING
     ];
 
-    // MODX comment tag  [[-  comment  ]]
-    // Recognized before all other tags so it takes priority.
-    const COMMENT_TAG = {
-        scope: 'comment',
-        begin: /\[\[\s*-/,
-        end: /\]\]/,
-        contains: [],
-        relevance: 10,
-    };
-    
-    /**
-     * Build a MODX tag mode.
-     *
-     * @param {string}       beginPattern   regex string for the opening bracket + sigil
-     * @param {string}       nameScope      hljs scope for the tag name token
-     * @param {RegExp}       namePattern    regex for the tag name
-     * @param {object[]}     extraContains  any extra modes before the name
-     */
-    const makeTag = (beginPattern, nameScope, namePattern, extraContains = []) => ({
-        scope: 'template-tag',
-        begin: beginPattern,
-        end: /\]\]/,
-        beginScope: 'punctuation',
-        endScope: 'punctuation',
-        contains: [
-            // Uncached marker ! — styled as keyword so it stands out
-            {
-                scope: 'keyword',
-                match: /!/,
-            },
-            ...extraContains,
-            // Tag name/identifier
-            {
-                scope: nameScope,
-                match: namePattern,
-            },
-            ...TAG_BODY_CONTAINS,
-            MODX_TAGS // Allow nested tags
+    // HTML/XML Integration
+    const MODX_HTML = hljs.inherit(XML, {
+        name: "MODX",
+        aliases: [
+            "modx",
+            "modx-revolution",
+            "tpl",
+            "fenom"
         ],
     });
 
-    // TV: [[*tv]]  [[!*tv]]
-    const TV_TAG = makeTag(
-            /\[\[!?\s*\*/,
-            'variable', // [[*tvName]]
-            /[a-zA-Z_][a-zA-Z0-9_-]*/);
-
-    // Placeholder: [[+key]]  [[!+key]]
-    const PLACEHOLDER_TAG = makeTag(
-            /\[\[!?\s*\+/,
-            'symbol', // [[+placeholder]]
-            /[a-zA-Z_][a-zA-Z0-9_.+-]*/);
-
-    // Chunk: [[$chunk]]  [[!$chunk]]
-    const CHUNK_TAG = makeTag(
-            /\[\[!?\s*\$/,
-            'title.class', // [[$chunkName]]
-            /[a-zA-Z_][a-zA-Z0-9_-]*/,
-            [BINDING_PREFIX]// [[$@INLINE `...`]] pattern
-        );
-
-    // System setting: [[++setting]]  [[!++setting]]
-    const SETTING_TAG = makeTag(
-            /\[\[!?\s*\+\+/,
-            'variable.constant', // [[++system.setting]]
-            /[a-zA-Z_][a-zA-Z0-9_.+-]*/);
-
-    // Link/URL: [[~id]]  [[!~id]]  [[~[[*id]]]]
-    const LINK_TAG = makeTag(
-            /\[\[!?\s*~/,
-            'number', // [[~42]]  [[~[[*id]]]]
-            /[\d]+|(?=[[\]])/// numeric id or nested tag
-        );
-
-    // Lexicon: [[%key]]  [[!%key]]
-    const LEXICON_TAG = makeTag(
-            /\[\[!?\s*%/,
-            'string', // [[%error.not_found]]
-            /[a-zA-Z_][a-zA-Z0-9_.+-]*/);
-
-    // fastField: [[#field]]  [[#id.field]]  [[#[[*id]].field]]
-    const FASTFIELD_TAG = makeTag(
-            /\[\[!?\s*#/,
-            'attribute', // [[#pagetitle]]  [[#42.content]]
-            /[\d]*\.?[a-zA-Z_][a-zA-Z0-9_-]*/);
-
-    // Snippet/general tag: [[SnippetName]]  [[!SnippetName]]
-    // This is the catch-all; must come last so sigil-prefixed tags take priority.
-    const SNIPPET_TAG = makeTag(
-            /\[\[\s*!?\s*/,
-            'title.function', // [[snippetName]]
-            /[a-zA-Z_][a-zA-Z0-9_-]*/);
-
-    // pdoTools/Fenom tag syntax
-    // pdoTools introduces a Fenom template engine with its own tag wrappers.
-    // {$var}  — fenom variable
-    const FENOM_VAR = {
-        scope: 'template-variable',
-        begin: /\{\$/,
-        end: /\}/,
-        beginScope: 'punctuation',
-        endScope: 'punctuation',
-        contains: [{
-                scope: 'variable',
-                match: /[a-zA-Z_][a-zA-Z0-9_.[\]'"-]*/,
-            },
-            OUTPUT_FILTER,
-        ],
-    };
-
-    // {{+placeholder}}  — pdoTools placeholder (double-brace)
-    const PDO_PLACEHOLDER = {
-        scope: 'template-tag',
-        begin: /\{\{\+/,
-        end: /\}\}/,
-        beginScope: 'punctuation',
-        endScope: 'punctuation',
-        contains: [{
-                scope: 'symbol',
-                match: /[a-zA-Z_][a-zA-Z0-9_.+-]*/,
-            },
-            OUTPUT_FILTER,
-            BACKTICK_STRING,
-        ],
-    };
-
-    // {{$chunk}}  — pdoTools chunk call (double-brace)
-    const PDO_CHUNK = {
-        scope: 'template-tag',
-        begin: /\{\{\$/,
-        end: /\}\}/,
-        beginScope: 'punctuation',
-        endScope: 'punctuation',
-        contains: [{
-                scope: 'title.class',
-                match: /[a-zA-Z_][a-zA-Z0-9_-]*/,
-            },
-            PARAMETER,
-            BACKTICK_STRING,
-        ],
-    };
-
-    // {%key | default%}  — pdoTools lexicon string
-    const PDO_LEXICON = {
-        scope: 'template-tag',
-        begin: /\{%/,
-        end: /%\}/,
-        beginScope: 'punctuation',
-        endScope: 'punctuation',
-        contains: [{
-                scope: 'string',
-                match: /[a-zA-Z_][a-zA-Z0-9_.+-]*/,
-            },
-        ],
-    };
-
-    // {if}, {foreach}, {extends}, {block}, etc. — Fenom control tags
-    // Styled as keyword so they're clearly distinct from data tags.
-    const FENOM_CONTROL = {
-        scope: 'keyword',
-        begin: /\{(?:if|elseif|else|foreach|for|switch|case|default|break|continue|return|extends|block|use|capture|filter|set|unset|include|insert|cycle|macro|call)\b/,
-        end: /\}/,
+    const MODX_TEXT = {
+        begin: /(?:\[\[|{)/,
         contains: [
-            BACKTICK_STRING, {
-                scope: 'variable',
-                match: /\$[a-zA-Z_][a-zA-Z0-9_.]*/,
-            },
-            hljs.NUMBER_MODE,
-        ],
+            MODX_TAG,
+            FENOM_TAG
+        ]
     };
 
-    // {* fenom comment *}
-    const FENOM_COMMENT = {
-        scope: 'comment',
-        begin: /\{\*/,
-        end: /\*\}/,
-    };
-
-    // All things Revolution
-    const MODX_REVO_TAGS = [
-        SETTING_TAG,
-        TV_TAG,
-        PLACEHOLDER_TAG,
-        CHUNK_TAG,
-        LINK_TAG,
-        LEXICON_TAG,
-        FASTFIELD_TAG,
-        SNIPPET_TAG
-    ];
-
-    // This allows the tags to "know" 
-    // about themselves inside backticks
-    MODX_TAGS.contains.push(...MODX_REVO_TAGS);
-
-    // HTML BASE
-    const HTML = hljs.getLanguage('xml');
-
-    // Language definition
-    return {
-        name: 'MODX',
-        aliases: ['modx', 'modx-tag', 'modx-html'],
-        case_insensitive: false,
+    const MODX_ATTRIBUTE = {
+        begin: /(?:\[\[|{\$)/,
         contains: [
-            // Comments must come first — highest priority
-            COMMENT_TAG,
-            FENOM_COMMENT,
-
-            // Sigil-prefixed MODX tags (specific → general)
-            SETTING_TAG,         // [[++  must precede PLACEHOLDER_TAG ([[+)
-            TV_TAG,              // [[*
-            PLACEHOLDER_TAG,     // [[+
-            CHUNK_TAG,           // [[$
-            LINK_TAG,            // [[~
-            LEXICON_TAG,         // [[%
-            FASTFIELD_TAG,       // [[#
-            SNIPPET_TAG,         // [[  (catch-all, must be last)
-
-            // pdoTools/Fenom
-            FENOM_CONTROL,
-            FENOM_VAR,
-            PDO_PLACEHOLDER,     // {{+  must precede PDO_CHUNK ({{$)
-            PDO_CHUNK,           // {{$
-            PDO_LEXICON,         // {%...%}
-
-            // Binding prefixes that appear outside a tag context
-            // (e.g. in a chunk's source field or inline template)
-            BINDING_PREFIX,
-
-            // Then HTML
-            ...(HTML ? HTML.contains : [])
-        ],
+            MODX_TAG,
+            FENOM_VARIABLE_BLOCK
+        ]
     };
+
+    MODX_HTML.contains = (MODX_HTML.contains || []).map(mode => {
+        if (!mode.contains) {
+            return mode;
+        }
+        return hljs.inherit(mode, {
+            contains: [
+                ...(mode.contains || []),
+                MODX_TEXT,
+                MODX_ATTRIBUTE
+            ]
+        });
+    });
+
+    MODX_HTML.relevance = 0;
+    MODX_HTML.contains.unshift({
+        begin: /\[\[(?:!|\*|\+|\+|~|%|-|#)/,
+        relevance: 10
+    }, {
+        begin: /\{\$[A-Za-z_]/,
+        relevance: 5
+    });
+
+    return MODX_HTML;
 }
