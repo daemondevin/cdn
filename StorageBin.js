@@ -1,215 +1,569 @@
 /**
- * ## StorageBin
- * A localStorage wrapper with a cookie fallback
- * 
- * All methods checks for localStorage support first
- * 
- * If no support is found then all methods will 
- * fallback to implementing cookies instead.
+ * StorageBin
+ *
+ * A lightweight, backend-independent storage abstraction.
+ *
+ * Supported backends:
+ *     "auto"           Automatically select localStorage, then cookies.
+ *     "localStorage"   Browser localStorage.
+ *     "sessionStorage" Browser sessionStorage.
+ *     "cookie"         Browser cookies.
+ *     "memory"         In-memory storage.
+ *
+ * Example:
+ *
+ *     const prefs = new StorageBin();
+ *
+ *     prefs.set("theme", "dark");
+ *     prefs.set("enabled", true);
+ *     prefs.set("settings", {
+ *         sidebar: true,
+ *         compact: false
+ *     });
+ *
+ *     prefs.get("theme");
+ *     prefs.contains("enabled");
+ *     prefs.del("theme");
+ *
+ *     // Explicit backend:
+ *     const session = new StorageBin({
+ *         backend: "sessionStorage"
+ *     });
+ *
+ *     // Cookie storage:
+ *     const cookies = new StorageBin({
+ *         backend: "cookie"
+ *     });
+ *
+ *     // Automatic fallback:
+ *     const storage = new StorageBin({
+ *         backend: "auto"
+ *     });
  */
-const prefs = new function StorageBin () {
-    let self = this,
-        test = "a";
+const StorageBin = (() => {
+    "use strict";
 
-    const supported = () => {
-        let granted;
-        try {
-            window.localStorage.setItem(test, test);
-            window.localStorage.removeItem(test);
-            granted = true;
-        } catch (e) {
-            granted = false;
-        }
-        return granted;
-    };
+    const TEST_KEY = "__storagebin_test__";
 
     /**
-     * Stores the specified key/value pair allowing
-     * for the following types: <em>string</em>, <em>number</em>,
-     * <em>boolean</em>, <em>object</em>, and <em>array</em>.<br />
-     * If no key is supplied and only an object is passed,
-     * this function acts as an alias for <code>StorageBin.store()</code>.
-     * 
-     * @param {string/int/boolean/object/array} key 
-     * @param {object/string} value
+     * Serialization
      */
-    StorageBin.prototype.set = function(key, value) {
-        if (supported) {
-            if (arguments.length === 1) {
-                self.store(key);
-            } else if (typeof key === "string") {
-                if (typeof value === "object") {
-                    value = JSON.stringify(value);
-                }
-                window.localStorage.setItem(key, value);
-            } else {
-                throw new TypeError("Failed to execute StorageBin.set(): one or more arguments are invalid");
-            }
-        } else {
-            document.cookie = key + "=" + value + "; path=/";
-        }
-    };
-
-    /**
-     * Stores the object in localStorage, allowing access to individual object properties
-     * @param {object} value
-     */
-    StorageBin.prototype.store = function(value) {
-        if (typeof value === "object" && !(value instanceof Array)) {
-            for (const property in value) {
-                if(value.hasOwnProperty(property)) {
-                    window.localStorage.setItem(property, value[property]);
-                }
-            }
-        } else {
-            throw new TypeError("Failed to execute StorageBin.store(): argument must be of type object! " + typeof(value) + " given.");
-        }
-    };
     
-    /**
-     * Returns the value of a specified key in localStorage.
-     * This value is converted to its proper type upon retrieval.
-     * If the key is not in local storage, then defaultValue is
-     * returned if specified.
-     * @param key
-     * @param defaultValue
-     * @returns {string|boolean|null|number|any}
-     */
-    StorageBin.prototype.get = function(key, defaultValue) {
-        if (supported) {
-            if (typeof key !== "string") {
-                throw new TypeError("Failed to execute StorageBin.get(): key must be of type string! " + typeof(key) + " given.");
+    const encode = (value) => {
+        if (typeof value === "string") {
+            return value;
+        }
+
+        try {
+            const result = JSON.stringify(value);
+
+            /**
+             * JSON.stringify(undefined) returns undefined rather than
+             * a string. Storage backends require a string value.
+             */
+            if (typeof result === "undefined") {
+                throw new TypeError(
+                    "StorageBin: undefined cannot be stored."
+                );
             }
 
-            let value = window.localStorage.getItem(key); // retrieve value
-            let number = parseFloat(value); // to allow for number checking
+            return result;
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw error;
+            }
 
-            if (value === null) {
-                // Returns default value if key is not set, otherwise returns null
-                return arguments.length === 2 ? defaultValue : null;
-            } else if (!isNaN(number)) {
-                return number; // value was of type number
-            } else if (
-                value.toLowerCase() === "true" ||
-                value.toLowerCase() === "false"
-            ) {
-                return value === "true"; //value was of type boolean
-            } else {
-                try {
-                    value = JSON.parse(value);
-                    return value;
-                } catch (e) {
-                    return value;
-                }
-            }
-        } else {
-            let key_equals = key + "=",
-                cookies = document.cookie.split(";");
-            for (let i = 0, j = cookies.length; i < j; i++) {
-                let this_cookie = cookies[i];
-                while (this_cookie.charAt(0) === " ") {
-                    this_cookie = this_cookie.substring(1, this_cookie.length);
-                }
-                if (this_cookie.indexOf(key_equals) === 0) {
-                    return this_cookie.substring(
-                        key_equals.length,
-                        this_cookie.length
-                    );
-                }
-            }
+            throw new TypeError(
+                "StorageBin: value could not be serialized."
+            );
+        }
+    };
+
+    const decode = (value) => {
+        if (value === null) {
             return null;
         }
-    };
 
-    /**
-     * Returns an array of keys currently stored in localStorage
-     * @returns {*[]}
-     */
-    StorageBin.prototype.getKeys = function() {
-        let result = [];
-        for (let i = 0; i < window.localStorage.length; i++) {
-            result.push(window.localStorage.key(i));
+        /**
+         * Strings are stored without JSON encoding, so try JSON and
+         * fall back to the original string.
+         */
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return value;
         }
-        return result;
     };
 
     /**
-     * Checks if localStorage contains the specified key
-     * @param {string} key
-     * @returns {boolean}
+     * Web Storage backend factory
      */
-    StorageBin.prototype.contains = function(key) {
-        if (typeof key !== "string") {
-            throw new TypeError("Failed to execute StorageBin.contains(): key must be of type string! " + typeof(key) + " given.");
-        }
-        return self.getKeys().indexOf(key) !== -1;
-    };
+    
+    const createWebStorageBackend = (name) => {
+        const getStorage = () => {
+            if (
+                typeof window === "undefined" ||
+                !window[name]
+            ) {
+                return null;
+            }
 
-    /**
-     * Removes the specified key/value pair from localStorage given a key<br/>
-     * Optionally takes an array to remove key/value pairs specified in the array
-     * @param {string/array} key
-     */
-    StorageBin.prototype.del = function(key) {
-        if (supported) {
-            if (typeof key === "string") {
-                window.localStorage.removeItem(key);
-            } else if (key instanceof Array) {
-                for (let i = 0; i < key.length; i++) {
-                    if (typeof key[i] === "string") {
-                        window.localStorage.removeItem(key[i]);
-                    } else {
-                        throw new TypeError("Failed to execute StorageBin.del(): the array key at index " + i + " must be of type string! " + typeof(key[i]) + " given.");
+            return window[name];
+        };
+
+        return {
+            name,
+
+            available() {
+                try {
+                    const storage = getStorage();
+
+                    if (!storage) {
+                        return false;
+                    }
+
+                    storage.setItem(TEST_KEY, TEST_KEY);
+
+                    const works =
+                        storage.getItem(TEST_KEY) === TEST_KEY;
+
+                    storage.removeItem(TEST_KEY);
+
+                    return works;
+                } catch (error) {
+                    return false;
+                }
+            },
+
+            set(key, value) {
+                getStorage().setItem(key, value);
+            },
+
+            get(key) {
+                return getStorage().getItem(key);
+            },
+
+            has(key) {
+                return getStorage().getItem(key) !== null;
+            },
+
+            remove(key) {
+                getStorage().removeItem(key);
+            },
+
+            keys() {
+                const storage = getStorage();
+                const result = [];
+
+                for (let i = 0; i < storage.length; i++) {
+                    const key = storage.key(i);
+
+                    if (key !== null) {
+                        result.push(key);
                     }
                 }
-            } else {
-                throw new TypeError("Failed to execute StorageBin.del(): key must be of type string! " + typeof(key) + " given.");
+
+                return result;
+            },
+
+            clear() {
+                getStorage().clear();
             }
-        } else {
-            self.set(key, "");
-        }
+        };
     };
 
     /**
-     * An alias for <code>StorageBin.clear()</code>
+     * Cookie backend
      */
-    StorageBin.prototype.empty = function() {
-        self.clear();
-    };
 
-    /**
-     * Removes all key/value pairs from localStorage
-     */
-    StorageBin.prototype.clear = function() {
-        if (supported) {
-            window.localStorage.clear();
-        } else {
-            let cookies = document.cookie.split(";");
-            let i = 0,
-                j = cookies.length;
-            for (; i < j; i++) {
-                let this_cookie = cookies[i];
-                let equals_position = this_cookie.indexOf("=");
-                let name =
-                    equals_position > -1 ? this_cookie.substr(0, equals_position) : this_cookie;
-                document.cookie =
-                    name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    const cookieBackend = {
+        name: "cookie",
+
+        available() {
+            if (typeof document === "undefined") {
+                return false;
             }
+
+            try {
+                const key = TEST_KEY;
+                const value = TEST_KEY;
+
+                this.set(key, value);
+
+                const works = this.get(key) === value;
+
+                this.remove(key);
+
+                return works;
+            } catch (error) {
+                return false;
+            }
+        },
+
+        set(key, value) {
+            document.cookie =
+                encodeURIComponent(key) +
+                "=" +
+                encodeURIComponent(value) +
+                "; path=/";
+        },
+
+        get(key) {
+            const target =
+                encodeURIComponent(key) + "=";
+
+            const cookies = document.cookie
+                ? document.cookie.split(";")
+                : [];
+
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+
+                if (cookie.indexOf(target) === 0) {
+                    const value =
+                        cookie.substring(target.length);
+
+                    try {
+                        return decodeURIComponent(value);
+                    } catch (error) {
+                        return value;
+                    }
+                }
+            }
+
+            return null;
+        },
+
+        has(key) {
+            return this.get(key) !== null;
+        },
+
+        remove(key) {
+            document.cookie =
+                encodeURIComponent(key) +
+                "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/";
+        },
+
+        keys() {
+            if (
+                typeof document === "undefined" ||
+                !document.cookie
+            ) {
+                return [];
+            }
+
+            return document.cookie
+                .split(";")
+                .map(cookie => cookie.trim())
+                .filter(Boolean)
+                .map(cookie => {
+                    const index = cookie.indexOf("=");
+
+                    const key =
+                        index === -1
+                            ? cookie
+                            : cookie.substring(0, index);
+
+                    try {
+                        return decodeURIComponent(key);
+                    } catch (error) {
+                        return key;
+                    }
+                });
+        },
+
+        clear() {
+            this.keys().forEach(key => {
+                this.remove(key);
+            });
         }
     };
 
     /**
-     * Returns an object representation of the current state of localStorage
-     * @returns {{}}
+     * Memory backend
+     *
+     * Useful when:
+     *
+     *     - Running tests
+     *     - Running without browser storage
+     *     - Running in unusual environments
+     *     - A temporary storage area is desired
      */
-    StorageBin.prototype.toObject = function() {
-        const o = {};
-        const keys = self.getKeys();
 
-        for (let i = 0; i < keys.length; i++) {
-            const key = keys[i];
-            o[key] = self.get(key);
-        }
-        return o;
+    const createMemoryBackend = () => {
+        const data = Object.create(null);
+
+        return {
+            name: "memory",
+
+            available() {
+                return true;
+            },
+
+            set(key, value) {
+                data[key] = value;
+            },
+
+            get(key) {
+                return Object.prototype.hasOwnProperty.call(
+                    data,
+                    key
+                )
+                    ? data[key]
+                    : null;
+            },
+
+            has(key) {
+                return Object.prototype.hasOwnProperty.call(
+                    data,
+                    key
+                );
+            },
+
+            remove(key) {
+                delete data[key];
+            },
+
+            keys() {
+                return Object.keys(data);
+            },
+
+            clear() {
+                Object.keys(data).forEach(key => {
+                    delete data[key];
+                });
+            }
+        };
     };
-}();
+
+    /**
+     * Backend registry
+     */
+
+    const createBackends = () => ({
+        localStorage:
+            createWebStorageBackend("localStorage"),
+
+        sessionStorage:
+            createWebStorageBackend("sessionStorage"),
+
+        cookie:
+            cookieBackend,
+
+        memory:
+            createMemoryBackend()
+    });
+
+    /**
+     * Backend selection
+     */
+
+    const selectBackend = (requested, backends) => {
+        const name = requested || "auto";
+
+        if (name === "auto") {
+            if (backends.localStorage.available()) {
+                return backends.localStorage;
+            }
+
+            if (backends.cookie.available()) {
+                return backends.cookie;
+            }
+
+            return backends.memory;
+        }
+
+        if (!backends[name]) {
+            throw new TypeError(
+                "StorageBin: unknown backend \"" +
+                name +
+                "\". Supported backends are: " +
+                Object.keys(backends).join(", ") +
+                "."
+            );
+        }
+
+        if (!backends[name].available()) {
+            throw new Error(
+                "StorageBin: backend \"" +
+                name +
+                "\" is not available."
+            );
+        }
+
+        return backends[name];
+    };
+
+    /**
+     * StorageBin constructor
+     */
+
+    class StorageBin {
+        constructor(options = {}) {
+            if (
+                options === null ||
+                typeof options !== "object" ||
+                Array.isArray(options)
+            ) {
+                throw new TypeError(
+                    "StorageBin: options must be an object."
+                );
+            }
+
+            const backends = createBackends();
+
+            this._backend = selectBackend(
+                options.backend || "auto",
+                backends
+            );
+
+            this._backendName = this._backend.name;
+        }
+
+        /**
+         * Backend information
+         */
+        get backend() {
+            return this._backendName;
+        }
+
+        /**
+         * set()
+         */
+        set(key, value) {
+            if (typeof key !== "string") {
+                throw new TypeError(
+                    "StorageBin.set(): key must be a string."
+                );
+            }
+
+            this._backend.set(
+                key,
+                encode(value)
+            );
+
+            return this;
+        }
+
+        /**
+         * store()
+         */
+        store(values) {
+            if (
+                values === null ||
+                typeof values !== "object" ||
+                Array.isArray(values)
+            ) {
+                throw new TypeError(
+                    "StorageBin.store(): argument must be an object."
+                );
+            }
+
+            Object.keys(values).forEach(key => {
+                this.set(key, values[key]);
+            });
+
+            return this;
+        }
+
+        /**
+         * get()
+         */
+        get(key, defaultValue = null) {
+            if (typeof key !== "string") {
+                throw new TypeError(
+                    "StorageBin.get(): key must be a string."
+                );
+            }
+
+            const value = this._backend.get(key);
+
+            if (value === null) {
+                return defaultValue;
+            }
+
+            return decode(value);
+        }
+
+        /**
+         * getKeys()
+         */
+        getKeys() {
+            return this._backend.keys();
+        }
+
+        /**
+         * contains()
+         */
+        contains(key) {
+            if (typeof key !== "string") {
+                throw new TypeError(
+                    "StorageBin.contains(): key must be a string."
+                );
+            }
+
+            return this._backend.has(key);
+        }
+
+        /**
+         * del()
+         */
+        del(keys) {
+            if (typeof keys === "string") {
+                this._backend.remove(keys);
+                return this;
+            }
+
+            if (Array.isArray(keys)) {
+                keys.forEach((key, index) => {
+                    if (typeof key !== "string") {
+                        throw new TypeError(
+                            "StorageBin.del(): key at index " +
+                            index +
+                            " must be a string."
+                        );
+                    }
+
+                    this._backend.remove(key);
+                });
+
+                return this;
+            }
+
+            throw new TypeError(
+                "StorageBin.del(): key must be a string or array."
+            );
+        }
+
+        /**
+         * empty()
+         */
+        empty() {
+            return this.clear();
+        }
+
+        /**
+         * clear()
+         */
+        clear() {
+            this._backend.clear();
+
+            return this;
+        }
+
+        /**
+         * toObject()
+         */
+        toObject() {
+            const result = {};
+
+            this.getKeys().forEach(key => {
+                result[key] = this.get(key);
+            });
+
+            return result;
+        }
+    }
+
+    return StorageBin;
+})();
